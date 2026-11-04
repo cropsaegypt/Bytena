@@ -1,0 +1,22 @@
+{
+  "name": "بيتنا - Baytna ❤️",
+  "short_name": "بيتنا",
+  "description": "النظام المتكامل لإدارة حياة فادي ورحمة ومنزلهما",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fdfaf8",
+  "theme_color": "#e11d48",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

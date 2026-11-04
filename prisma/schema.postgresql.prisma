@@ -1,0 +1,326 @@
+// PostgreSQL Schema for Production Cloud Deployment (Neon / Supabase / Railway / Render)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Household {
+  id                  String             @id @default(uuid())
+  name                String             @default("بيتنا - فادي ورحمة")
+  monthlyBudgetTarget Decimal            @default(16000.0) @db.Decimal(12, 2)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  users               User[]
+  recipes             Recipe[]
+  mealPlans           MealPlan[]
+  shoppingItems       ShoppingItem[]
+  expenses            Expense[]
+  invoices            InvoiceReceipt[]
+  tasks               HouseholdTask[]
+  rewards             RewardCatalog[]
+  aiMessages          AIChatMessage[]
+}
+
+model User {
+  id           String    @id
+  householdId  String
+  email        String?   @unique
+  passwordHash String    @default("")
+  pinHash      String    @default("1234")
+  displayName  String
+  role         String
+  avatar       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  household         Household            @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  healthProfile     HealthProfile?
+  weightLogs        WeightLog[]
+  workoutLogs       WorkoutLog[]
+  medicalRecords    MedicalRecord[]
+  waterLogs         WaterLog[]
+  prayerRecords     PrayerRecord[]
+  points            PointsTransaction[]
+  rewardRedemptions RewardRedemption[]
+  assignedTasks     HouseholdTask[]
+  assignedShopping  ShoppingItem[]
+  expensesPaid      Expense[]
+  uploadedInvoices  InvoiceReceipt[]
+  aiMessages        AIChatMessage[]
+  suggestedRecipes  Recipe[]
+
+  @@index([householdId])
+}
+
+model HealthProfile {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  birthDate           DateTime?
+  heightCm            Decimal   @default(175.0) @db.Decimal(5, 1)
+  currentWeightKg     Decimal   @default(75.0) @db.Decimal(5, 2)
+  targetWeightKg      Decimal   @default(70.0) @db.Decimal(5, 2)
+  activityLevel       String    @default("MODERATE")
+  dailyCalorieTarget  Int       @default(2200)
+  dailyWaterTargetMl  Int       @default(2500)
+  macrosProteinG      Int       @default(140)
+  macrosCarbsG        Int       @default(220)
+  macrosFatG          Int       @default(65)
+  isSharedWithPartner Boolean   @default(false)
+  updatedAt           DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WeightLog {
+  id        String   @id @default(uuid())
+  userId    String
+  weightKg  Decimal  @db.Decimal(5, 2)
+  loggedAt  DateTime @default(now())
+  notes     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, loggedAt])
+}
+
+model WorkoutLog {
+  id             String   @id @default(uuid())
+  userId         String
+  title          String
+  category       String
+  durationMins   Int      @default(45)
+  exercisesJson  Json     @default("[]")
+  burnedCalories Int      @default(250)
+  date           DateTime @default(now())
+  notes          String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, date])
+}
+
+model MedicalRecord {
+  id                  String   @id @default(uuid())
+  userId              String
+  title               String
+  testType            String
+  testDate            DateTime @default(now())
+  filePath            String?
+  aiSummary           String?  @db.Text
+  isSharedWithPartner Boolean  @default(false)
+  createdAt           DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model WaterLog {
+  id       String   @id @default(uuid())
+  userId   String
+  amountMl Int      @default(250)
+  date     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, date])
+}
+
+model Recipe {
+  id                String   @id @default(uuid())
+  householdId       String
+  title             String
+  category          String
+  imageUrl          String?
+  servings          Int      @default(2)
+  prepTimeMins      Int      @default(30)
+  ingredientsJson   Json     @default("[]")
+  instructionsJson  Json     @default("[]")
+  calories          Int      @default(450)
+  proteinG          Int      @default(25)
+  carbsG            Int      @default(40)
+  fatG              Int      @default(15)
+  estimatedCost     Decimal  @default(80.0) @db.Decimal(10, 2)
+  suggestedByUserId String?
+  isFavoriteFady    Boolean  @default(false)
+  isFavoriteRahma   Boolean  @default(false)
+  dislikedByFady    Boolean  @default(false)
+  dislikedByRahma   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  household   Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  suggestedBy User?       @relation(fields: [suggestedByUserId], references: [id])
+  mealPlans   MealPlan[]
+  @@index([householdId])
+}
+
+model MealPlan {
+  id          String   @id @default(uuid())
+  householdId String
+  date        DateTime
+  mealType    String
+  recipeId    String?
+  customName  String?
+  servings    Int      @default(2)
+  status      String   @default("PLANNED")
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  recipe    Recipe?   @relation(fields: [recipeId], references: [id])
+  @@index([householdId, date])
+}
+
+model ShoppingItem {
+  id               String   @id @default(uuid())
+  householdId      String
+  name             String
+  category         String   @default("GROCERIES")
+  quantity         Decimal  @default(1.0) @db.Decimal(8, 2)
+  unit             String   @default("قطعة")
+  inStockQty       Decimal  @default(0.0) @db.Decimal(8, 2)
+  needBuyQty       Decimal  @default(1.0) @db.Decimal(8, 2)
+  estimatedPrice   Decimal  @default(0.0) @db.Decimal(10, 2)
+  actualPrice      Decimal? @db.Decimal(10, 2)
+  isPurchased      Boolean  @default(false)
+  assignedToUserId String?
+  sourceRecipeId   String?
+  addedByVoiceOrAi Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  household  Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  assignedTo User?     @relation(fields: [assignedToUserId], references: [id])
+  @@index([householdId, isPurchased])
+}
+
+model Expense {
+  id               String   @id @default(uuid())
+  householdId      String
+  title            String
+  amount           Decimal  @db.Decimal(10, 2)
+  category         String   @default("FOOD")
+  expenseDate      DateTime @default(now())
+  paidByUserId     String
+  invoiceReceiptId String?
+  paymentMethod    String   @default("CASH")
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  household Household       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  paidBy    User            @relation(fields: [paidByUserId], references: [id])
+  invoice   InvoiceReceipt? @relation(fields: [invoiceReceiptId], references: [id])
+  @@index([householdId, expenseDate])
+}
+
+model InvoiceReceipt {
+  id               String   @id @default(uuid())
+  householdId      String
+  imagePath        String
+  storeName        String   @default("سوبرماركت / متجر")
+  invoiceDate      DateTime @default(now())
+  totalAmount      Decimal  @default(0.0) @db.Decimal(10, 2)
+  taxAmount        Decimal  @default(0.0) @db.Decimal(10, 2)
+  discountAmount   Decimal  @default(0.0) @db.Decimal(10, 2)
+  parsedItemsJson  Json     @default("[]")
+  status           String   @default("DRAFT")
+  uploadedByUserId String
+  createdAt        DateTime @default(now())
+
+  household  Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation(fields: [uploadedByUserId], references: [id])
+  expenses   Expense[]
+  @@index([householdId])
+}
+
+model PrayerRecord {
+  id                String   @id @default(uuid())
+  userId            String
+  date              DateTime
+  fajr              Boolean  @default(false)
+  dhuhr             Boolean  @default(false)
+  asr               Boolean  @default(false)
+  maghrib           Boolean  @default(false)
+  isha              Boolean  @default(false)
+  morningDhikr      Boolean  @default(false)
+  eveningDhikr      Boolean  @default(false)
+  quranPages        Int      @default(0)
+  encouragementNote String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, date])
+}
+
+model RewardCatalog {
+  id              String   @id @default(uuid())
+  householdId     String
+  title           String
+  description     String?
+  pointsCost      Int      @default(50)
+  icon            String   @default("🎁")
+  isActive        Boolean  @default(true)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  household   Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  redemptions RewardRedemption[]
+  @@index([householdId])
+}
+
+model RewardRedemption {
+  id          String   @id @default(uuid())
+  rewardId    String
+  userId      String
+  pointsSpent Int
+  status      String   @default("REQUESTED")
+  redeemedAt  DateTime @default(now())
+  notes       String?
+
+  reward RewardCatalog @relation(fields: [rewardId], references: [id])
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PointsTransaction {
+  id        String   @id @default(uuid())
+  userId    String
+  points    Int
+  reason    String
+  category  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model HouseholdTask {
+  id               String    @id @default(uuid())
+  householdId      String
+  title            String
+  area             String    @default("GENERAL")
+  frequency        String    @default("WEEKLY")
+  assignedToUserId String?
+  isCompleted      Boolean   @default(false)
+  pointsReward     Int       @default(10)
+  lastCompletedAt  DateTime?
+  createdAt        DateTime  @default(now())
+
+  household  Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  assignedTo User?     @relation(fields: [assignedToUserId], references: [id])
+  @@index([householdId])
+}
+
+model AIChatMessage {
+  id            String   @id @default(uuid())
+  householdId   String
+  userId        String?
+  persona       String   @default("om_mahmoud")
+  role          String
+  content       String   @db.Text
+  mediaUrl      String?
+  toolCallsJson Json?
+  createdAt     DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id])
+  @@index([householdId, persona])
+}

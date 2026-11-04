@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Household {
+  id                  String             @id @default("baytna-main")
+  name                String             @default("بيتنا - فادي ورحمة")
+  monthlyBudgetTarget Float              @default(15000.0)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  users               User[]
+  recipes             Recipe[]
+  mealPlans           MealPlan[]
+  shoppingItems       ShoppingItem[]
+  expenses            Expense[]
+  invoices            InvoiceReceipt[]
+  tasks               HouseholdTask[]
+  rewards             RewardCatalog[]
+  aiMessages          AIChatMessage[]
+}
+
+model User {
+  id          String   @id // "fady", "rahma", or UUID
+  householdId String   @default("baytna-main")
+  displayName String   // "فادي", "رحمة"
+  role        String   // "OWNER_FADY", "OWNER_RAHMA", "MEMBER"
+  avatar      String?  // Avatar image path or preset identifier
+  pinHash     String   // 4-digit PIN for private health/medical data ("1234" by default, changeable)
+  createdAt   DateTime @default(now())
+
+  household         Household            @relation(fields: [householdId], references: [id])
+  healthProfile     HealthProfile?
+  weightLogs        WeightLog[]
+  workoutLogs       WorkoutLog[]
+  medicalRecords    MedicalRecord[]
+  waterLogs         WaterLog[]
+  prayerRecords     PrayerRecord[]
+  points            PointsTransaction[]
+  rewardRedemptions RewardRedemption[]
+  assignedTasks     HouseholdTask[]
+  assignedShopping  ShoppingItem[]
+  expensesPaid      Expense[]
+  uploadedInvoices  InvoiceReceipt[]
+  aiMessages        AIChatMessage[]
+  suggestedRecipes  Recipe[]
+}
+
+model HealthProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  birthDate            DateTime?
+  heightCm             Float    @default(175.0)
+  currentWeightKg      Float    @default(75.0)
+  targetWeightKg       Float    @default(70.0)
+  activityLevel        String   @default("MODERATE") // SEDENTARY, LIGHT, MODERATE, VERY_ACTIVE
+  dailyCalorieTarget   Int      @default(2200)
+  dailyWaterTargetMl   Int      @default(2500)
+  macrosProteinG       Int      @default(140)
+  macrosCarbsG         Int      @default(220)
+  macrosFatG           Int      @default(65)
+  isSharedWithPartner  Boolean  @default(false) // strictly private unless enabled
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WeightLog {
+  id        String   @id @default(cuid())
+  userId    String
+  weightKg  Float
+  loggedAt  DateTime @default(now())
+  notes     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WorkoutLog {
+  id             String   @id @default(cuid())
+  userId         String
+  title          String
+  category       String   // "GYM", "HOME", "CARDIO", "WALKING"
+  durationMins   Int      @default(45)
+  exercisesJson  String   @default("[]") // details: sets, reps, weights
+  burnedCalories Int      @default(250)
+  date           DateTime @default(now())
+  notes          String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MedicalRecord {
+  id                  String   @id @default(cuid())
+  userId              String
+  title               String   // e.g. "تحليل دم شامل CBC", "فحص فيتامين د"
+  testType            String   // "BLOOD_TEST", "SCAN", "PRESCRIPTION", "CHECKUP"
+  testDate            DateTime @default(now())
+  filePath            String?  // path to saved file or preview
+  aiSummary           String?  // Safe clinical explanation (non-diagnostic)
+  isSharedWithPartner Boolean  @default(false)
+  createdAt           DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WaterLog {
+  id       String   @id @default(cuid())
+  userId   String
+  amountMl Int      @default(250)
+  date     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Recipe {
+  id                 String   @id @default(cuid())
+  householdId        String   @default("baytna-main")
+  title              String
+  category           String   // "BREAKFAST", "LUNCH", "DINNER", "SNACK"
+  imageUrl           String?
+  servings           Int      @default(2)
+  prepTimeMins       Int      @default(30)
+  ingredientsJson    String   @default("[]") // [{name, amount, unit, estimatedPrice}]
+  instructionsJson   String   @default("[]") // ["خطوة 1", "خطوة 2"]
+  calories           Int      @default(450)
+  proteinG           Int      @default(25)
+  carbsG             Int      @default(40)
+  fatG               Int      @default(15)
+  estimatedCost      Float    @default(80.0)
+  suggestedByUserId  String?
+  isFavoriteFady     Boolean  @default(false)
+  isFavoriteRahma    Boolean  @default(false)
+  dislikedByFady     Boolean  @default(false)
+  dislikedByRahma    Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  household   Household   @relation(fields: [householdId], references: [id])
+  suggestedBy User?       @relation(fields: [suggestedByUserId], references: [id])
+  mealPlans   MealPlan[]
+}
+
+model MealPlan {
+  id          String   @id @default(cuid())
+  householdId String   @default("baytna-main")
+  date        DateTime // Date of meal
+  mealType    String   // "BREAKFAST", "LUNCH", "DINNER", "SNACK"
+  recipeId    String?
+  customName  String?
+  servings    Int      @default(2)
+  status      String   @default("PLANNED") // "PLANNED", "PREPARED", "SKIPPED"
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id])
+  recipe    Recipe?   @relation(fields: [recipeId], references: [id])
+}
+
+model ShoppingItem {
+  id                 String   @id @default(cuid())
+  householdId        String   @default("baytna-main")
+  name               String
+  category           String   @default("GROCERIES") // GROCERIES, CLEANING, HOUSEHOLD, PERSONAL, PHARMACY
+  quantity           Float    @default(1.0)
+  unit               String   @default("قطعة") // كجم, لتر, كيس, علبة, قطعة
+  inStockQty         Float    @default(0.0)
+  needBuyQty         Float    @default(1.0)
+  estimatedPrice     Float    @default(0.0)
+  actualPrice        Float?
+  isPurchased        Boolean  @default(false)
+  assignedToUserId   String?
+  sourceRecipeId     String?
+  addedByVoiceOrAi   Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  household  Household @relation(fields: [householdId], references: [id])
+  assignedTo User?     @relation(fields: [assignedToUserId], references: [id])
+}
+
+model Expense {
+  id               String   @id @default(cuid())
+  householdId      String   @default("baytna-main")
+  title            String
+  amount           Float
+  category         String   @default("FOOD") // FOOD, HOUSEHOLD, CLEANING, UTILITIES, FADY_PERSONAL, RAHMA_PERSONAL, HEALTH_GYM, ENTERTAINMENT, OTHER
+  expenseDate      DateTime @default(now())
+  paidByUserId     String
+  invoiceReceiptId String?
+  paymentMethod    String   @default("CASH") // CASH, CARD, INSTAPAY, WALLET
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  household Household       @relation(fields: [householdId], references: [id])
+  paidBy    User            @relation(fields: [paidByUserId], references: [id])
+  invoice   InvoiceReceipt? @relation(fields: [invoiceReceiptId], references: [id])
+}
+
+model InvoiceReceipt {
+  id               String   @id @default(cuid())
+  householdId      String   @default("baytna-main")
+  imagePath        String
+  storeName        String   @default("سوبرماركت / متجر")
+  invoiceDate      DateTime @default(now())
+  totalAmount      Float    @default(0.0)
+  taxAmount        Float    @default(0.0)
+  discountAmount   Float    @default(0.0)
+  parsedItemsJson  String   @default("[]") // [{name, qty, unitPrice, category, matchedItemId}]
+  status           String   @default("DRAFT") // "DRAFT", "CONFIRMED"
+  uploadedByUserId String
+  createdAt        DateTime @default(now())
+
+  household  Household @relation(fields: [householdId], references: [id])
+  uploadedBy User      @relation(fields: [uploadedByUserId], references: [id])
+  expenses   Expense[]
+}
+
+model PrayerRecord {
+  id                String   @id @default(cuid())
+  userId            String
+  date              DateTime // date without time
+  fajr              Boolean  @default(false)
+  dhuhr             Boolean  @default(false)
+  asr               Boolean  @default(false)
+  maghrib           Boolean  @default(false)
+  isha              Boolean  @default(false)
+  morningDhikr      Boolean  @default(false)
+  eveningDhikr      Boolean  @default(false)
+  quranPages        Int      @default(0)
+  encouragementNote String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model RewardCatalog {
+  id              String   @id @default(cuid())
+  householdId     String   @default("baytna-main")
+  title           String
+  description     String?
+  pointsCost      Int      @default(50)
+  icon            String   @default("🎁")
+  isActive        Boolean  @default(true)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  household   Household          @relation(fields: [householdId], references: [id])
+  redemptions RewardRedemption[]
+}
+
+model RewardRedemption {
+  id          String   @id @default(cuid())
+  rewardId    String
+  userId      String
+  pointsSpent Int
+  status      String   @default("REQUESTED") // "REQUESTED", "APPROVED", "COMPLETED"
+  redeemedAt  DateTime @default(now())
+  notes       String?
+
+  reward RewardCatalog @relation(fields: [rewardId], references: [id])
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PointsTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  points    Int
+  reason    String
+  category  String   // "PRAYER", "CHORES", "HEALTH", "KITCHEN", "BONUS"
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model HouseholdTask {
+  id               String    @id @default(cuid())
+  householdId      String    @default("baytna-main")
+  title            String
+  area             String    @default("GENERAL") // KITCHEN, LIVING_ROOM, BEDROOM, BATHROOM, LAUNDRY, GENERAL
+  frequency        String    @default("WEEKLY") // DAILY, WEEKLY, BIWEEKLY, MONTHLY
+  assignedToUserId String?
+  isCompleted      Boolean   @default(false)
+  pointsReward     Int       @default(10)
+  lastCompletedAt  DateTime?
+  createdAt        DateTime  @default(now())
+
+  household  Household @relation(fields: [householdId], references: [id])
+  assignedTo User?     @relation(fields: [assignedToUserId], references: [id])
+}
+
+model AIChatMessage {
+  id            String   @id @default(cuid())
+  householdId   String   @default("baytna-main")
+  userId        String?
+  persona       String   @default("om_mahmoud") // "om_mahmoud", "fady_coach", "family_assistant"
+  role          String   // "user", "assistant", "system"
+  content       String
+  mediaUrl      String?
+  toolCallsJson String?
+  createdAt     DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
+}
