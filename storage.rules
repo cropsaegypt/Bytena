@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Household shared receipts
+    match /invoices/{allPaths=**} {
+      allow read, write: if true;
+    }
+    // Private medical reports
+    match /medical/{userId}/{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
