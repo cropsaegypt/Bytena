@@ -16,7 +16,7 @@ interface UserContextType {
   currentUser: ClientUser;
   switchUser: (userId: 'fady' | 'rahma') => void;
   isHealthUnlocked: boolean;
-  unlockHealthWithPin: (pin: string) => Promise<boolean>;
+  unlockHealthWithPin: (pin: string) => Promise<{ success: boolean; isDefaultPin?: boolean }>;
   lockHealth: () => void;
   isQuickActionOpen: boolean;
   openQuickAction: () => void;
@@ -74,7 +74,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   };
 
-  const unlockHealthWithPin = async (pin: string): Promise<boolean> => {
+  const unlockHealthWithPin = async (pin: string): Promise<{ success: boolean; isDefaultPin?: boolean }> => {
     try {
       const res = await fetch('/api/auth/verify-pin', {
         method: 'POST',
@@ -84,16 +84,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (data.success) {
         setIsHealthUnlocked(true);
-        return true;
+        return { success: true, isDefaultPin: !!data.isDefaultPin };
       }
-      return false;
+      return { success: false };
     } catch {
-      // Offline fallback: check default '1234'
-      if (pin === '1234') {
+      // Offline fallback: check default '0000' or '1234'
+      if (pin === '0000' || pin === '1234') {
         setIsHealthUnlocked(true);
-        return true;
+        return { success: true, isDefaultPin: true };
       }
-      return false;
+      return { success: false };
     }
   };
 

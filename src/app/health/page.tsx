@@ -20,6 +20,7 @@ import {
   Eye, 
   Share2,
   Sparkles,
+  Key,
   X
 } from 'lucide-react';
 
@@ -85,6 +86,56 @@ export default function HealthPage() {
   const [medicalType, setMedicalType] = useState('BLOOD_TEST');
   const [medicalSummary, setMedicalSummary] = useState('');
   const [medicalShare, setMedicalShare] = useState(false);
+
+  // Change PIN modal state
+  const [isChangePinOpen, setIsChangePinOpen] = useState(false);
+  const [newPinInput, setNewPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [changePinError, setChangePinError] = useState<string | null>(null);
+  const [isSavingPin, setIsSavingPin] = useState(false);
+
+  const handleSaveNewPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePinError(null);
+
+    const cleanNew = newPinInput.trim();
+    const cleanConfirm = confirmPinInput.trim();
+
+    if (cleanNew.length !== 4 || !/^\d{4}$/.test(cleanNew)) {
+      setChangePinError('رمز الـ PIN يجب أن يتكون من 4 أرقام بالضبط');
+      return;
+    }
+
+    if (cleanNew !== cleanConfirm) {
+      setChangePinError('الرمزان غير متطابقين، يرجى التأكد وإعادة الكتابة');
+      return;
+    }
+
+    setIsSavingPin(true);
+    try {
+      const res = await fetch('/api/auth/change-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          newPin: cleanNew,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showNotification('تم تعيين رمز الـ PIN الجديد بنجاح! 🔒');
+        setIsChangePinOpen(false);
+        setNewPinInput('');
+        setConfirmPinInput('');
+      } else {
+        setChangePinError(json.message || 'حدث خطأ أثناء تغيير الرمز');
+      }
+    } catch {
+      setChangePinError('تعذر الاتصال بالخادم، حاول مرة أخرى');
+    } finally {
+      setIsSavingPin(false);
+    }
+  };
 
   const fetchHealthData = async () => {
     try {
@@ -277,9 +328,15 @@ export default function HealthPage() {
         <PinKeypadModal
           isOpen={isPinModalOpen}
           onClose={() => setIsPinModalOpen(false)}
-          onSuccess={() => {
+          onSuccess={(isDefaultPin) => {
             setIsPinModalOpen(false);
             fetchHealthData();
+            if (isDefaultPin) {
+              setNewPinInput('');
+              setConfirmPinInput('');
+              setChangePinError(null);
+              setIsChangePinOpen(true);
+            }
           }}
         />
       </div>
@@ -314,6 +371,21 @@ export default function HealthPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Change PIN button */}
+          <button
+            onClick={() => {
+              setNewPinInput('');
+              setConfirmPinInput('');
+              setChangePinError(null);
+              setIsChangePinOpen(true);
+            }}
+            className="px-2.5 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold flex items-center gap-1 transition-all"
+            title="تغيير رمز الـ PIN"
+          >
+            <Key className="w-3.5 h-3.5 text-brand-600" />
+            <span>تغيير الـ PIN</span>
+          </button>
+
           {/* Lock again button */}
           <button
             onClick={lockHealth}
@@ -737,6 +809,86 @@ export default function HealthPage() {
                 className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl font-bold text-xs"
               >
                 إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL 4: CHANGE PIN MODAL */}
+      {isChangePinOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
+          <form
+            onSubmit={handleSaveNewPin}
+            className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4 animate-scaleUp text-center"
+          >
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
+              <Key className="w-7 h-7 stroke-[2.2]" />
+            </div>
+
+            <div>
+              <h3 className="font-extrabold text-base text-neutral-800">
+                تعيين رمز PIN جديد للملف الصحي 🔒
+              </h3>
+              <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+                رمز الـ PIN الحالي هو الرمز الافتراضي (0000). لضمان سرية وخصوصية تحاليلك الطبية وأوزانك، يرجى كتابة رمز سري جديد خاص بك مكوّن من 4 أرقام.
+              </p>
+            </div>
+
+            {changePinError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl animate-shake">
+                {changePinError}
+              </div>
+            )}
+
+            <div className="space-y-3 text-right">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  رمز الـ PIN الجديد (4 أرقام)
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  required
+                  placeholder="••••"
+                  value={newPinInput}
+                  onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-center font-mono font-bold text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  تأكيد رمز الـ PIN الجديد
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  required
+                  placeholder="••••"
+                  value={confirmPinInput}
+                  onChange={(e) => setConfirmPinInput(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-center font-mono font-bold text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={isSavingPin || newPinInput.length !== 4 || confirmPinInput.length !== 4}
+                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50"
+              >
+                {isSavingPin ? 'جاري الحفظ...' : 'حفظ وتأكيد الرمز 🔒'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsChangePinOpen(false)}
+                className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl font-bold text-xs"
+              >
+                تذكيري لاحقاً
               </button>
             </div>
           </form>

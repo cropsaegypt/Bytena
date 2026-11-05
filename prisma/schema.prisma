@@ -32,7 +32,7 @@ model User {
   role         String   // "OWNER_FADY", "OWNER_RAHMA", "MEMBER"
   avatar       String?  // Avatar image path or preset identifier
   passwordHash String   @default("123456") // Password for login
-  pinHash      String   @default("1234") // 4-digit PIN for private health/medical data
+  pinHash      String   @default("0000") // 4-digit PIN for private health/medical data
   createdAt    DateTime @default(now())
 
   household         Household            @relation(fields: [householdId], references: [id])

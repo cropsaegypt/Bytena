@@ -39,7 +39,7 @@ export async function ensureDatabaseInitialized() {
         role: 'OWNER_FADY',
         avatar: '👨🏻‍💻',
         passwordHash: 'fady2026', // Initial password for Fady
-        pinHash: '1234',
+        pinHash: '0000',
       },
     });
 
@@ -53,7 +53,7 @@ export async function ensureDatabaseInitialized() {
         role: 'OWNER_RAHMA',
         avatar: '👩🏻‍🍳',
         passwordHash: 'rahma2026', // Initial password for Rahma
-        pinHash: '1234',
+        pinHash: '0000',
       },
     });
 

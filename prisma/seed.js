@@ -42,7 +42,7 @@ async function main() {
       displayName: 'فادي',
       role: 'OWNER_FADY',
       avatar: '/avatars/fady.png',
-      pinHash: '1234', // default PIN
+      pinHash: '0000', // default PIN
     },
   });
 
@@ -55,7 +55,7 @@ async function main() {
       displayName: 'رحمة',
       role: 'OWNER_RAHMA',
       avatar: '/avatars/rahma.png',
-      pinHash: '1234', // default PIN
+      pinHash: '0000', // default PIN
     },
   });
 

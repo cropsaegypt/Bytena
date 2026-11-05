@@ -7,7 +7,7 @@ import { Lock, Delete, ShieldAlert, Fingerprint } from 'lucide-react';
 interface PinKeypadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (isDefaultPin?: boolean) => void;
   title?: string;
   description?: string;
 }
@@ -34,11 +34,11 @@ export default function PinKeypadModal({
 
     if (newPin.length === 4) {
       setLoading(true);
-      const ok = await unlockHealthWithPin(newPin);
+      const res = await unlockHealthWithPin(newPin);
       setLoading(false);
-      if (ok) {
+      if (res.success) {
         setPin('');
-        onSuccess();
+        onSuccess(res.isDefaultPin);
       } else {
         setError(true);
         setTimeout(() => setPin(''), 600);
@@ -135,7 +135,7 @@ export default function PinKeypadModal({
         </button>
 
         <p className="text-[10px] text-neutral-400 mt-2">
-          (الرمز الافتراضي المبدئي: <span className="font-mono font-bold">1234</span>)
+          (الرمز الافتراضي المبدئي: <span className="font-mono font-bold text-brand-600">0000</span>)
         </p>
       </div>
     </div>

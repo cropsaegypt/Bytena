@@ -31,7 +31,7 @@ model User {
   householdId  String
   email        String?   @unique
   passwordHash String    @default("")
-  pinHash      String    @default("1234")
+  pinHash      String    @default("0000")
   displayName  String
   role         String
   avatar       String?
