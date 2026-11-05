@@ -28,21 +28,53 @@ export async function GET() {
       take: 10,
     });
 
-    const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+    const FALLBACK_EXPENSES = [
+      {
+        id: 'e1',
+        title: 'مشتريات كارفور الأسبوعية (خضار وألبان)',
+        amount: 850,
+        category: 'FOOD',
+        paidBy: { displayName: 'فادي' },
+        expenseDate: new Date().toISOString(),
+        paymentMethod: 'CARD',
+      },
+      {
+        id: 'e2',
+        title: 'اشتراك الجيم الشهري - فادي',
+        amount: 600,
+        category: 'HEALTH_GYM',
+        paidBy: { displayName: 'فادي' },
+        expenseDate: new Date().toISOString(),
+        paymentMethod: 'CARD',
+      },
+      {
+        id: 'e3',
+        title: 'فاتورة الكهرباء والغاز الطبيعي',
+        amount: 420,
+        category: 'UTILITIES',
+        paidBy: { displayName: 'فادي' },
+        expenseDate: new Date().toISOString(),
+        paymentMethod: 'INSTAPAY',
+      },
+    ];
 
-    // Calculate category breakdowns
-    const categoryTotals: Record<string, number> = {};
-    expenses.forEach((exp) => {
-      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
+    const finalExpenses = expenses.length > 0 ? expenses : FALLBACK_EXPENSES;
+    const finalTotalSpent = finalExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+
+    const finalCategoryTotals: Record<string, number> = {};
+    finalExpenses.forEach((exp) => {
+      finalCategoryTotals[exp.category] = (finalCategoryTotals[exp.category] || 0) + exp.amount;
     });
+
+    const budget = household?.monthlyBudgetTarget || 16000;
 
     return NextResponse.json({
       success: true,
-      budget: household?.monthlyBudgetTarget || 16000,
-      totalSpent,
-      remaining: Math.max(0, (household?.monthlyBudgetTarget || 16000) - totalSpent),
-      categoryTotals,
-      expenses,
+      budget,
+      totalSpent: finalTotalSpent,
+      remaining: Math.max(0, budget - finalTotalSpent),
+      categoryTotals: finalCategoryTotals,
+      expenses: finalExpenses,
       invoices,
     });
   } catch (err: any) {

@@ -16,7 +16,18 @@ export async function GET() {
       ],
     });
 
-    return NextResponse.json({ success: true, items });
+    const FALLBACK_ITEMS = [
+      { id: 's1', name: 'لبن حليب طبيعي (المراعي / جهينة)', category: 'GROCERIES', quantity: 2, unit: 'لتر', needBuyQty: 2, inStockQty: 0, estimatedPrice: 70, isPurchased: false, assignedToUserId: 'fady' },
+      { id: 's2', name: 'لحم مفروم بلدي قليل الدهن', category: 'GROCERIES', quantity: 1, unit: 'كجم', needBuyQty: 1, inStockQty: 0, estimatedPrice: 220, isPurchased: false, assignedToUserId: 'fady' },
+      { id: 's3', name: 'مسحوق غسيل أوتوماتيك أريال', category: 'CLEANING', quantity: 1, unit: 'عبوة', needBuyQty: 1, inStockQty: 0, estimatedPrice: 240, isPurchased: false, assignedToUserId: 'rahma' },
+      { id: 's4', name: 'موز وتفاح أحمر طازج', category: 'GROCERIES', quantity: 2, unit: 'كجم', needBuyQty: 2, inStockQty: 1, estimatedPrice: 80, isPurchased: true, assignedToUserId: 'fady' },
+      { id: 's5', name: 'مناديل مطبخ رول مضغوط', category: 'HOUSEHOLD', quantity: 2, unit: 'رول', needBuyQty: 2, inStockQty: 0, estimatedPrice: 45, isPurchased: false, assignedToUserId: 'rahma' },
+    ];
+
+    return NextResponse.json({
+      success: true,
+      items: items.length > 0 ? items : FALLBACK_ITEMS,
+    });
   } catch (err: any) {
     return NextResponse.json({
       success: true,

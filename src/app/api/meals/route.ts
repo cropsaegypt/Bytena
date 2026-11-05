@@ -24,11 +24,98 @@ export async function GET(request: Request) {
       (r) => r.suggestedByUserId === 'fady' || r.isFavoriteFady
     );
 
+    const FALLBACK_RECIPES = [
+      {
+        id: 'r1',
+        title: 'مكرونة بالبشاميل بلدي أصلية',
+        category: 'LUNCH',
+        servings: 4,
+        prepTimeMins: 50,
+        calories: 580,
+        proteinG: 32,
+        carbsG: 65,
+        fatG: 22,
+        estimatedCost: 140,
+        isFavoriteFady: true,
+        isFavoriteRahma: true,
+        ingredientsJson: JSON.stringify([
+          { name: 'مكرونة قلم', amount: 500, unit: 'جرام' },
+          { name: 'لحم مفروم', amount: 350, unit: 'جرام' },
+          { name: 'لبن حليب', amount: 1, unit: 'لتر' }
+        ]),
+        instructionsJson: JSON.stringify(['سلق المكرونة', 'تعصيج اللحم', 'عمل البشاميل', 'الخبز بالفرن'])
+      },
+      {
+        id: 'r2',
+        title: 'صينية فراخ مشوية بالبطاطس والليمون',
+        category: 'LUNCH',
+        servings: 3,
+        prepTimeMins: 45,
+        calories: 460,
+        proteinG: 42,
+        carbsG: 35,
+        fatG: 14,
+        estimatedCost: 130,
+        isFavoriteFady: true,
+        isFavoriteRahma: true,
+        ingredientsJson: JSON.stringify([
+          { name: 'دجاج مقطع', amount: 1, unit: 'كجم' },
+          { name: 'بطاطس', amount: 500, unit: 'جرام' }
+        ]),
+        instructionsJson: JSON.stringify(['تتبيل الدجاج والبطاطس', 'الخبز بالفرن'])
+      },
+      {
+        id: 'r3',
+        title: 'شوفان بالحليب والموز والعسل 🍳',
+        category: 'BREAKFAST',
+        servings: 2,
+        prepTimeMins: 10,
+        calories: 380,
+        proteinG: 18,
+        carbsG: 55,
+        fatG: 11,
+        estimatedCost: 35,
+        isFavoriteFady: true,
+        isFavoriteRahma: true,
+        ingredientsJson: JSON.stringify([
+          { name: 'شوفان حبة كاملة', amount: 100, unit: 'جرام' },
+          { name: 'حليب', amount: 400, unit: 'مل' }
+        ]),
+        instructionsJson: JSON.stringify(['غلي الحليب وإضافة الشوفان', 'إضافة العسل والموز'])
+      }
+    ];
+
+    const finalRecipes = recipes.length > 0 ? recipes : FALLBACK_RECIPES;
+
+    const finalPlans = mealPlans.length > 0 ? mealPlans : [
+      {
+        id: 'p1',
+        date: new Date().toISOString(),
+        mealType: 'BREAKFAST',
+        customName: 'شوفان بالحليب والموز والعسل 🍳',
+        notes: 'فطار صحي خفيف',
+        recipe: finalRecipes[2],
+      },
+      {
+        id: 'p2',
+        date: new Date().toISOString(),
+        mealType: 'LUNCH',
+        customName: 'مكرونة بالبشاميل بلدي أصلية',
+        notes: 'فادي طلبها ورحمة عملتها بكل حب ❤️',
+        recipe: finalRecipes[0],
+      },
+    ];
+
+    const finalWishlist = fadyWishlist.length > 0 ? fadyWishlist : [
+      finalRecipes[0],
+      finalRecipes[1]
+    ];
+
     return NextResponse.json({
       success: true,
-      recipes,
-      mealPlans,
-      fadyWishlist,
+      recipes: finalRecipes,
+      mealPlans: finalPlans,
+      fadyWishlist: finalWishlist,
     });
   } catch (err: any) {
     return NextResponse.json({

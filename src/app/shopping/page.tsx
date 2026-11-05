@@ -17,10 +17,18 @@ import {
   Tag
 } from 'lucide-react';
 
+const DEFAULT_SHOPPING_ITEMS = [
+  { id: 's1', name: 'لبن حليب طبيعي (المراعي / جهينة)', category: 'GROCERIES', quantity: 2, unit: 'لتر', needBuyQty: 2, inStockQty: 0, estimatedPrice: 70, isPurchased: false, assignedToUserId: 'fady' },
+  { id: 's2', name: 'لحم مفروم بلدي قليل الدهن', category: 'GROCERIES', quantity: 1, unit: 'كجم', needBuyQty: 1, inStockQty: 0, estimatedPrice: 220, isPurchased: false, assignedToUserId: 'fady' },
+  { id: 's3', name: 'مسحوق غسيل أوتوماتيك أريال', category: 'CLEANING', quantity: 1, unit: 'عبوة', needBuyQty: 1, inStockQty: 0, estimatedPrice: 240, isPurchased: false, assignedToUserId: 'rahma' },
+  { id: 's4', name: 'موز وتفاح أحمر طازج', category: 'GROCERIES', quantity: 2, unit: 'كجم', needBuyQty: 2, inStockQty: 1, estimatedPrice: 80, isPurchased: true, assignedToUserId: 'fady' },
+  { id: 's5', name: 'مناديل مطبخ رول مضغوط', category: 'HOUSEHOLD', quantity: 2, unit: 'رول', needBuyQty: 2, inStockQty: 0, estimatedPrice: 45, isPurchased: false, assignedToUserId: 'rahma' },
+];
+
 export default function ShoppingPage() {
   const { currentUser } = useUser();
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<any[]>(DEFAULT_SHOPPING_ITEMS);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   

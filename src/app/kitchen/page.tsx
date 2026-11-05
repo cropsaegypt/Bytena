@@ -18,12 +18,100 @@ import {
   X
 } from 'lucide-react';
 
+const DEFAULT_KITCHEN_RECIPES = [
+  {
+    id: 'r1',
+    title: 'مكرونة بالبشاميل بلدي أصلية',
+    category: 'LUNCH',
+    servings: 4,
+    prepTimeMins: 50,
+    calories: 580,
+    proteinG: 32,
+    carbsG: 65,
+    fatG: 22,
+    estimatedCost: 140,
+    isFavoriteFady: true,
+    isFavoriteRahma: true,
+    ingredientsJson: JSON.stringify([
+      { name: 'مكرونة قلم', amount: 500, unit: 'جرام' },
+      { name: 'لحم مفروم', amount: 350, unit: 'جرام' },
+      { name: 'لبن حليب', amount: 1, unit: 'لتر' }
+    ]),
+    instructionsJson: JSON.stringify(['سلق المكرونة 8 دقائق', 'تعصيج اللحم مع البصل والبهارات', 'تحضير البشاميل بالحليب', 'رص الصينية والخبز بالفرن 30 دقيقة'])
+  },
+  {
+    id: 'r2',
+    title: 'صينية فراخ مشوية بالبطاطس والليمون',
+    category: 'LUNCH',
+    servings: 3,
+    prepTimeMins: 45,
+    calories: 460,
+    proteinG: 42,
+    carbsG: 35,
+    fatG: 14,
+    estimatedCost: 130,
+    isFavoriteFady: true,
+    isFavoriteRahma: true,
+    ingredientsJson: JSON.stringify([
+      { name: 'دجاج مقطع', amount: 1, unit: 'كجم' },
+      { name: 'بطاطس', amount: 500, unit: 'جرام' }
+    ]),
+    instructionsJson: JSON.stringify(['تتبيل الدجاج بالليمون والبهارات', 'رص البطاطس بالصينية', 'الخبز بالفرن حتى الاحمرار'])
+  },
+  {
+    id: 'r3',
+    title: 'شوفان بالحليب والموز والعسل 🍳',
+    category: 'BREAKFAST',
+    servings: 2,
+    prepTimeMins: 10,
+    calories: 380,
+    proteinG: 18,
+    carbsG: 55,
+    fatG: 11,
+    estimatedCost: 35,
+    isFavoriteFady: true,
+    isFavoriteRahma: true,
+    ingredientsJson: JSON.stringify([
+      { name: 'شوفان حبة كاملة', amount: 100, unit: 'جرام' },
+      { name: 'حليب', amount: 400, unit: 'مل' }
+    ]),
+    instructionsJson: JSON.stringify(['غلي الحليب وإضافة الشوفان 5 دقائق', 'تقديمه في أطباق مع الموز والعسل'])
+  }
+];
+
+const DEFAULT_MEAL_PLANS = [
+  {
+    id: 'p1',
+    date: new Date().toISOString(),
+    mealType: 'BREAKFAST',
+    customName: 'شوفان بالحليب والموز والعسل 🍳',
+    notes: 'فطار صحي وسريع قبل بداية اليوم',
+    recipe: DEFAULT_KITCHEN_RECIPES[2],
+  },
+  {
+    id: 'p2',
+    date: new Date().toISOString(),
+    mealType: 'LUNCH',
+    customName: 'مكرونة بالبشاميل بلدي أصلية',
+    notes: 'فادي طلبها ورحمة عملتها بكل حب ❤️',
+    recipe: DEFAULT_KITCHEN_RECIPES[0],
+  },
+  {
+    id: 'p3',
+    date: new Date().toISOString(),
+    mealType: 'DINNER',
+    customName: 'سلطة جبنة قريش بزيت الزيتون والزعتر وخيار 🥗',
+    notes: 'عشاء خفيف ومريح',
+    recipe: null,
+  }
+];
+
 export default function KitchenPage() {
   const { currentUser } = useUser();
-  const [loading, setLoading] = useState(true);
-  const [recipes, setRecipes] = useState<any[]>([]);
-  const [mealPlans, setMealPlans] = useState<any[]>([]);
-  const [fadyWishlist, setFadyWishlist] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [recipes, setRecipes] = useState<any[]>(DEFAULT_KITCHEN_RECIPES);
+  const [mealPlans, setMealPlans] = useState<any[]>(DEFAULT_MEAL_PLANS);
+  const [fadyWishlist, setFadyWishlist] = useState<any[]>([DEFAULT_KITCHEN_RECIPES[0], DEFAULT_KITCHEN_RECIPES[1]]);
   const [activeTab, setActiveTab] = useState<'plan' | 'recipes' | 'wishlist'>('plan');
   
   // Modals

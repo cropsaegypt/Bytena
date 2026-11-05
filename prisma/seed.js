@@ -5,6 +5,22 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding Baytna database...');
 
+  // Clean existing non-user data to ensure idempotent seeding
+  await prisma.aIChatMessage.deleteMany({});
+  await prisma.rewardRedemption.deleteMany({});
+  await prisma.rewardCatalog.deleteMany({});
+  await prisma.householdTask.deleteMany({});
+  await prisma.expense.deleteMany({});
+  await prisma.shoppingItem.deleteMany({});
+  await prisma.mealPlan.deleteMany({});
+  await prisma.recipe.deleteMany({});
+  await prisma.waterLog.deleteMany({});
+  await prisma.medicalRecord.deleteMany({});
+  await prisma.workoutLog.deleteMany({});
+  await prisma.weightLog.deleteMany({});
+  await prisma.prayerRecord.deleteMany({});
+  await prisma.pointsTransaction.deleteMany({});
+
   // 1. Create Household
   const household = await prisma.household.upsert({
     where: { id: 'baytna-main' },

@@ -23,11 +23,48 @@ import {
   X
 } from 'lucide-react';
 
+const DEFAULT_HEALTH_DATA = {
+  profile: {
+    heightCm: 182,
+    currentWeightKg: 85.5,
+    targetWeightKg: 78.0,
+    dailyCalorieTarget: 2350,
+    dailyWaterTargetMl: 3200,
+    macrosProteinG: 155,
+    macrosCarbsG: 230,
+    macrosFatG: 65,
+    isSharedWithPartner: false,
+    user: { displayName: 'فادي', avatar: '👨🏻‍💻' },
+  },
+  weightLogs: [
+    { id: 'w1', weightKg: 85.5, loggedAt: new Date().toISOString(), notes: 'وزن الصباح على الريق' },
+    { id: 'w2', weightKg: 86.2, loggedAt: new Date(Date.now() - 86400000 * 3).toISOString(), notes: 'تحسن في قياسات الجسم' },
+    { id: 'w3', weightKg: 87.0, loggedAt: new Date(Date.now() - 86400000 * 7).toISOString(), notes: 'بداية الالتزام' },
+  ],
+  workoutLogs: [
+    {
+      id: 'wk1',
+      title: 'تمرين بنش وترايسبس بالجيم 💪',
+      category: 'GYM',
+      durationMins: 55,
+      burnedCalories: 420,
+      date: new Date().toISOString(),
+      exercisesJson: JSON.stringify([
+        { name: 'بنش برس', sets: 4, reps: 12, weight: 65 },
+        { name: 'تجميع دمبلز مائل', sets: 3, reps: 12, weight: 20 },
+      ]),
+      notes: 'أداء عالي وطاقة ممتازة',
+    },
+  ],
+  totalWaterToday: 1500,
+  medicalRecords: [],
+};
+
 export default function HealthPage() {
   const { currentUser, isHealthUnlocked, lockHealth } = useUser();
   const [isPinModalOpen, setIsPinModalOpen] = useState(!isHealthUnlocked);
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(DEFAULT_HEALTH_DATA);
   
   // Modals
   const [isLogWeightOpen, setIsLogWeightOpen] = useState(false);

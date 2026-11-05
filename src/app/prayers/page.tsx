@@ -17,11 +17,38 @@ import {
   Check
 } from 'lucide-react';
 
+const DEFAULT_PRAYER_RECORD = {
+  id: 'p1',
+  fajr: true,
+  dhuhr: true,
+  asr: false,
+  maghrib: false,
+  isha: false,
+  morningDhikr: true,
+  eveningDhikr: false,
+  quranPages: 4,
+  encouragementNote: 'ما شاء الله التزام رائع بالفجر وحاضر الصلوات 🌟',
+};
+
+const DEFAULT_REWARDS_DATA = {
+  balance: 120,
+  catalog: [
+    { id: 'rw1', title: 'خروجة عشاء رايقة على النيل', description: 'مطعم جميل وجلسة هادئة ومكافأة لأسبوع مليء بالإنجاز والتفاهم', pointsCost: 150, icon: '🌊', isActive: true },
+    { id: 'rw2', title: 'اختيار فيلم السهرة مع فشار ومشروب', description: 'صاحب المكافأة هو اللي يختار الفيلم بدون أي اعتراض!', pointsCost: 40, icon: '🎬', isActive: true },
+    { id: 'rw3', title: 'يوم راحة وإعفاء كامل من مهام البيت', description: 'الطرف الثاني يتولى شؤون البيت بالكامل لليوم', pointsCost: 120, icon: '🛋️', isActive: true },
+  ],
+  redemptions: [],
+  pointsHistory: [
+    { id: 'ph1', points: 50, reason: 'بداية استخدام نظام بيتنا ❤️', createdAt: new Date().toISOString() },
+    { id: 'ph2', points: 15, reason: 'إنجاز مهمة مسح وترتيب الصالة ✨', createdAt: new Date().toISOString() },
+  ],
+};
+
 export default function PrayersAndRewardsPage() {
   const { currentUser } = useUser();
-  const [loading, setLoading] = useState(true);
-  const [prayerRecord, setPrayerRecord] = useState<any>(null);
-  const [rewardsData, setRewardsData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [prayerRecord, setPrayerRecord] = useState<any>(DEFAULT_PRAYER_RECORD);
+  const [rewardsData, setRewardsData] = useState<any>(DEFAULT_REWARDS_DATA);
   const [activeTab, setActiveTab] = useState<'prayers' | 'rewards'>('prayers');
   
   // Modals
