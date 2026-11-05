@@ -64,10 +64,41 @@ export interface AIServiceInterface {
 export class LocalHeuristicAIService implements AIServiceInterface {
   async chatWithOmMahmoud(userMessage: string, context?: any): Promise<ChatResponse> {
     const lower = userMessage.toLowerCase();
+    const isFady = context?.userId === 'fady' || lower.includes('فادي');
+    const greetingName = isFady ? 'يا فادي يا بني يا حبيب قلبي' : 'يا ست الكل يا رحمة يا سكرة';
+    const partnerName = isFady ? 'رحمة' : 'فادي';
 
-    if (lower.includes('أكل') || lower.includes('غدا') || lower.includes('وجبة') || lower.includes('طبخ') || lower.includes('مطبخ')) {
+    // 1. Greetings & Pleasantries
+    if (
+      lower.includes('ازيك') ||
+      lower.includes('عاملة ايه') ||
+      lower.includes('صباح') ||
+      lower.includes('مساء') ||
+      lower.includes('سلام') ||
+      lower.includes('أهلا') ||
+      lower.includes('اهلا') ||
+      lower.includes('هاي') ||
+      lower.includes('الو') ||
+      lower.includes('مين معايا') ||
+      lower.includes('يا ام محمود') ||
+      lower.includes('يا أم محمود')
+    ) {
       return {
-        message: 'يا صباح السعادة يا ست الكل! إيه رأيك نعمل مكرونة بالبشاميل أو صينية فراخ مشوية بالبطاطس؟ فادي بيحبهم جداً وسهلين ومش هياخدوا منك وقت خالص. والمكونات تقريباً كلها عندنا في التلاجة!',
+        message: `يا صباح الفل والياسمين والرضا ${greetingName}! أنا أم محمود، عايشة معاكم في بيتنا عشان أفرش لكم الدنيا راحة وروقان. قولي أساعدك في إيه النهارده؟ أكل، تنظيف، طلبات ناقصة، ولا ندردش شوية؟ ❤️`,
+      };
+    }
+
+    // 2. Love / Thanks / Compliments
+    if (lower.includes('بحبك') || lower.includes('شكرا') || lower.includes('تسلمي') || lower.includes('تسلم') || lower.includes('حبيبتي') || lower.includes('يا عسل')) {
+      return {
+        message: `الله يسعد قلبك ويجبر بخاطرك ${greetingName}! ده أنا اللي محظوظة بيك أنت و${partnerName}، ربنا يديم المحبة والبركة في بيتنا ويفضل عامر دايماً بالخير والضحكة الحلوة ❤️`,
+      };
+    }
+
+    // 3. Food / Cooking
+    if (lower.includes('أكل') || lower.includes('اكل') || lower.includes('غدا') || lower.includes('وجبة') || lower.includes('طبخ') || lower.includes('مطبخ') || lower.includes('عشا') || lower.includes('فطار')) {
+      return {
+        message: `يا صباح السعادة ${greetingName}! إيه رأيك نعمل مكرونة بالبشاميل بلدي أو صينية فراخ مشوية بالبطاطس والليمون؟ أكلة سهلة ولذيذة وكلكم بتحبوها، والمكونات تقريباً كلها عندنا في التلاجة 🍲`,
         suggestedAction: {
           type: 'ADD_RECIPE',
           payload: { title: 'صينية دجاج مشوي بالبطاطس', category: 'LUNCH' },
@@ -75,25 +106,35 @@ export class LocalHeuristicAIService implements AIServiceInterface {
       };
     }
 
-    if (lower.includes('ناقص') || lower.includes('شراء') || lower.includes('سوبرماركت') || lower.includes('طلبات')) {
+    // 4. Shopping / Needs
+    if (lower.includes('ناقص') || lower.includes('شراء') || lower.includes('سوبرماركت') || lower.includes('طلبات') || lower.includes('اشتري')) {
       return {
-        message: 'بصي يا حبيبتي، مسجلة عندي في طلبات البيت اللبن واللحم المفروم ومسحوق الغسيل. ممكن نخلي فادي يجيبهم وهو راجع من الشغل أو نطلبهم أونلاين عشان متتعبيش نفسك ❤️',
+        message: `بص ${isFady ? 'يا فادي يا بني' : 'يا حبيبتي يا رحمة'}، مسجلة عندي في طلبات البيت اللبن الحليب واللحم المفروم ومسحوق الغسيل والموز. تحب نكتب حاجة تانية ناقصة نزودها في القائمة دلوقتي؟ 🛒`,
         suggestedAction: {
           type: 'ADD_SHOPPING',
-          payload: { name: 'لبن حليب', category: 'GROCERIES', quantity: 2, unit: 'لتر' },
+          payload: { name: 'لبن حليب طبيعي', category: 'GROCERIES', quantity: 2, unit: 'لتر' },
         },
       };
     }
 
-    if (lower.includes('تعبانة') || lower.includes('مرهقة') || lower.includes('كسل') || lower.includes('ارتاح')) {
+    // 5. Chores / Cleaning
+    if (lower.includes('تنظيف') || lower.includes('غسيل') || lower.includes('مواعين') || lower.includes('ترتيب') || lower.includes('شغل البيت')) {
       return {
-        message: 'سلامتك ألف سلامة يا ست البنات! متعمليش أي مجهود زيادة النهارده، البيت مش هيطير. خدي ليكي فنجان شاي بالنعناع أو كوباية ينسون دافية واقعدي ريحي شوية وفادي هيساعدك في باقي الحاجات ❤️',
+        message: `على مهلك خالص، البيت مش هيطير! 15 دقيقة لمّ خفيف للصالة وتلميع الطاولات وغسالة الأطباق تخلص المواعين، والبيت هينور بروقان ومن غير أي فرهدة أو مجهود زيادة 🧹✨`,
       };
     }
 
-    if (lower.includes('مية') || lower.includes('عطشانة') || lower.includes('شرب')) {
+    // 6. Fatigue / Stress
+    if (lower.includes('تعبان') || lower.includes('مرهق') || lower.includes('كسل') || lower.includes('ارتاح') || lower.includes('زهقان') || lower.includes('صداع')) {
       return {
-        message: 'جدعة يا قمر! متنسيش تشربي كوباية المية الكبيرة دي، الترطيب مهم جداً لنضارتك وصحتك ويديكي طاقة طول اليوم 💧',
+        message: `سلامتك ألف سلامة من التعب والهم ${greetingName}! سيب كل حاجة من إيدك دلوقتي، واعمل ليمون دافي أو فنجان ينسون واقعد ريّح ضهرك شوية.. صحتك وراحة بالك أهم من كل حاجة في الدنيا ❤️`,
+      };
+    }
+
+    // 7. Water
+    if (lower.includes('مية') || lower.includes('عطشان') || lower.includes('شرب')) {
+      return {
+        message: `جدع يا قمر! متنساش تشرب كوباية المية الكبيرة دي، الترطيب مهم جداً لنضارتك وصحتك ويديك طاقة طول اليوم 💧`,
         suggestedAction: {
           type: 'REMIND_WATER',
           payload: { amountMl: 300 },
@@ -101,9 +142,16 @@ export class LocalHeuristicAIService implements AIServiceInterface {
       };
     }
 
+    // 8. Finance / Money
+    if (lower.includes('فلوس') || lower.includes('مصاريف') || lower.includes('ميزانية') || lower.includes('صرفنا') || lower.includes('توفير')) {
+      return {
+        message: `كل قرش بيتحط في بيتنا فيه بركة إن شاء الله! إحنا مسجلين ميزانيتنا ومصروفاتنا أول بأول في صفحة 'ميزانيتنا' وكل الأمور تحت السيطرة وفي أمان تام 💰`,
+      };
+    }
+
     // Default warm Egyptian reply
     return {
-      message: `من عينيا يا ست رحمة يا سكرة! أنا معاكي خطوة بخطوة عشان بيتنا يفضل دايمًا رايق ومنظم وفيه أحلى بركة. تحبي ننظم مهام النهارده ولا نراجع طلبات المطبخ والمصروفات؟`,
+      message: `من عينيا الاتنين ${greetingName}! أنا معاك خطوة بخطوة عشان بيتنا يفضل دايمًا رايق ومنظم وفيه أحلى بركة. تحب ننظم طلبات البيت، نختار غدا النهارده، ولا نراجع المصاريف؟ ❤️`,
     };
   }
 
@@ -392,18 +440,21 @@ export class GeminiAIService implements AIServiceInterface {
         systemInstruction: `أنت "أم محمود" - ست البيت المصرية ومديرة الروقان في تطبيق بيتنا (Baytna).
 شخصيتك:
 - مصرية أصيلة، حنونة ودافئة، خفيفة الظل وذكية.
-- تتحدثين باللهجة المصرية اليومية الطبيعية الجميلة ("يا ست الكل"، "يا حبيبتي"، "روقان"، "زي الفل"، "صباح الفل والياسمين").
+- تتحدثين باللهجة المصرية اليومية الطبيعية الجميلة ("يا ست الكل"، "يا حبيبتي"، "يا فادي يا بني"، "روقان"، "زي الفل"، "صباح الفل والياسمين").
 - تساعدين رحمة وفادي في تدبير المطبخ، تنظيم البيت، التوفير، والهدوء النفسي بدون أي ضغط أو توبيخ.
 - تقدمين نصائح عملية لتجهيز الأكل والنواقص والتنظيف السريع.
 أجيبي بدفء واختصار وروح إيجابية مصرية.`,
       });
 
       const prompt = `رسالة رحمة أو فادي: "${userMessage}"\nسياق المنزل: ${JSON.stringify(context || {})}`;
-      const result = await model.generateContent(prompt);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI response timed out')), 5000)
+      );
+      const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
       const text = result.response.text();
       return { message: text };
     } catch (error) {
-      console.warn('Gemini chat error, using local fallback:', error);
+      console.warn('Gemini chat fallback to local:', error);
       return new LocalHeuristicAIService().chatWithOmMahmoud(userMessage, context);
     }
   }
@@ -421,7 +472,10 @@ export class GeminiAIService implements AIServiceInterface {
       });
 
       const prompt = `سؤال المتدرب: "${userMessage}"\nبيانات المتدرب: ${JSON.stringify(userProfile || {})}`;
-      const result = await model.generateContent(prompt);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI response timed out')), 5000)
+      );
+      const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
       return { message: result.response.text() };
     } catch (error) {
       return new LocalHeuristicAIService().chatWithFitnessCoach(userMessage, userProfile);
@@ -441,7 +495,10 @@ export class GeminiAIService implements AIServiceInterface {
       });
 
       const prompt = `السؤال: "${userMessage}"\nبيانات البيت: ${JSON.stringify(householdData || {})}`;
-      const result = await model.generateContent(prompt);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI response timed out')), 5000)
+      );
+      const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
       return { message: result.response.text() };
     } catch (error) {
       return new LocalHeuristicAIService().chatWithFamilyAssistant(userMessage, householdData);

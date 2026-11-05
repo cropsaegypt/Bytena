@@ -60,12 +60,12 @@ export async function POST(request: Request) {
     } catch {}
 
     // 2. Fetch context if possible
-    let context: any = {};
+    let context: any = { userId: userId || 'rahma' };
     try {
       if (persona === 'family_assistant') {
         const expenses = await prisma.expense.findMany({ where: { householdId: 'baytna-main' } });
         const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
-        context = { totalSpent };
+        context.totalSpent = totalSpent;
       }
     } catch {}
 
