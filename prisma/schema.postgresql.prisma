@@ -30,7 +30,7 @@ model User {
   id           String    @id
   householdId  String
   email        String?   @unique
-  passwordHash String    @default("")
+  passwordHash String    @default("dalida")
   pinHash      String    @default("0000")
   displayName  String
   role         String

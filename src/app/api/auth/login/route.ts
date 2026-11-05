@@ -25,24 +25,36 @@ export async function POST(request: Request) {
       where: { id: userId },
     });
 
-    // Accept either database stored password or standard default
+    // Accept either database stored password, 'dalida', or previous defaults
+    const inputPassword = password.trim();
     const validPasswords = [
       user?.passwordHash,
+      'dalida',
+      'Dalida',
+      'DALIDA',
       userId === 'fady' ? 'fady2026' : 'rahma2026',
-      '123456',
     ].filter(Boolean);
 
-    const isMatch = validPasswords.includes(password.trim());
+    const isMatch = validPasswords.some(
+      (p) => p?.toLowerCase() === inputPassword.toLowerCase()
+    );
 
     if (!isMatch) {
       return NextResponse.json({ success: false, message: 'كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى' }, { status: 401 });
     }
+
+    const isDefaultPassword = 
+      inputPassword.toLowerCase() === 'dalida' || 
+      user?.passwordHash?.toLowerCase() === 'dalida' ||
+      inputPassword === 'fady2026' ||
+      inputPassword === 'rahma2026';
 
     // Create session token
     const token = createSignedToken({ userId, loggedInAt: Date.now() });
 
     const response = NextResponse.json({
       success: true,
+      isDefaultPassword,
       user: {
         id: user?.id || userId,
         displayName: user?.displayName || (userId === 'fady' ? 'فادي' : 'رحمة'),

@@ -31,7 +31,7 @@ model User {
   displayName  String   // "فادي", "رحمة"
   role         String   // "OWNER_FADY", "OWNER_RAHMA", "MEMBER"
   avatar       String?  // Avatar image path or preset identifier
-  passwordHash String   @default("123456") // Password for login
+  passwordHash String   @default("dalida") // Password for login
   pinHash      String   @default("0000") // 4-digit PIN for private health/medical data
   createdAt    DateTime @default(now())
 
