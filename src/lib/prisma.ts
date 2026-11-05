@@ -4,7 +4,15 @@ import path from 'path';
 import { EMBEDDED_DB_BASE64 } from './db-seed-binary';
 
 function getDatabaseUrl(): string {
-  // On Vercel / serverless: copy dev.db to /tmp so SQLite has write and journal lock permissions!
+  // 1. If a Cloud Database URL is provided (PostgreSQL / Neon / Supabase): USE IT DIRECTLY!
+  if (
+    process.env.DATABASE_URL &&
+    (process.env.DATABASE_URL.startsWith('postgres://') || process.env.DATABASE_URL.startsWith('postgresql://'))
+  ) {
+    return process.env.DATABASE_URL;
+  }
+
+  // 2. On Vercel / serverless: copy dev.db to /tmp so SQLite has write and journal lock permissions!
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || (process.env.NODE_ENV === 'production' && process.platform === 'linux')) {
     const tmpDbPath = '/tmp/dev.db';
     let needsRestore = true;

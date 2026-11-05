@@ -1,22 +1,66 @@
 {
   "name": "بيتنا - Baytna ❤️",
   "short_name": "بيتنا",
-  "description": "النظام المتكامل لإدارة حياة فادي ورحمة ومنزلهما",
+  "description": "النظام المتكامل لإدارة حياة فادي ورحمة ومنزلهما، الوجبات، التسوق، والميزانية والصحة",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#fdfaf8",
   "theme_color": "#e11d48",
   "orientation": "portrait-primary",
+  "categories": ["lifestyle", "family", "productivity"],
+  "lang": "ar",
+  "dir": "rtl",
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "المطبخ والوجبات",
+      "short_name": "المطبخ",
+      "url": "/kitchen",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "طلبات البيت",
+      "short_name": "التسوق",
+      "url": "/shopping",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "ميزانية البيت",
+      "short_name": "الميزانية",
+      "url": "/finance",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "أم محمود (المساعدة الذكية)",
+      "short_name": "أم محمود",
+      "url": "/assistant",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
