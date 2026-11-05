@@ -13,7 +13,10 @@ import {
   Dumbbell, 
   Home, 
   RefreshCw,
-  Plus
+  Plus,
+  Key,
+  X,
+  ExternalLink
 } from 'lucide-react';
 
 export default function AssistantPage() {
@@ -23,7 +26,20 @@ export default function AssistantPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [geminiKey, setGeminiKey] = useState<string>('');
+  const [tempKey, setTempKey] = useState<string>('');
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [hasCustomKey, setHasCustomKey] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedKey = localStorage.getItem('baytna_gemini_key') || '';
+      setGeminiKey(savedKey);
+      setTempKey(savedKey);
+      setHasCustomKey(!!savedKey && savedKey.length > 10);
+    }
+  }, []);
 
   const fetchMessages = async () => {
     try {
@@ -69,6 +85,7 @@ export default function AssistantPage() {
           message: userText,
           persona,
           userId: currentUser.id,
+          geminiApiKey: geminiKey || undefined,
         }),
       });
       const json = await res.json();
@@ -222,14 +239,30 @@ export default function AssistantPage() {
       </div>
 
       {/* Persona Header Banner */}
-      <div className="p-3 bg-neutral-50 border border-neutral-200/80 rounded-2xl flex items-center gap-3 shrink-0 mb-3 shadow-sm">
-        <div className="w-11 h-11 rounded-2xl bg-white shadow-sm flex items-center justify-center text-2xl border border-neutral-100">
-          {currentMeta.avatar}
+      <div className="p-3 bg-neutral-50 border border-neutral-200/80 rounded-2xl flex items-center justify-between gap-2 shrink-0 mb-3 shadow-sm">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-11 h-11 rounded-2xl bg-white shadow-sm flex items-center justify-center text-2xl border border-neutral-100 shrink-0">
+            {currentMeta.avatar}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xs font-extrabold text-neutral-800">{currentMeta.name}</h2>
+            <p className="text-[10px] text-neutral-500 line-clamp-1">{currentMeta.description}</p>
+          </div>
         </div>
-        <div className="flex-1">
-          <h2 className="text-xs font-extrabold text-neutral-800">{currentMeta.name}</h2>
-          <p className="text-[10px] text-neutral-500 line-clamp-1">{currentMeta.description}</p>
-        </div>
+
+        {/* Gemini Engine Pill */}
+        <button
+          onClick={() => setIsKeyModalOpen(true)}
+          className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-xl border transition-all shrink-0 active:scale-95 ${
+            hasCustomKey
+              ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 shadow-sm'
+              : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+          }`}
+          title="إعدادات ذكاء Gemini"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+          <span>{hasCustomKey ? 'Gemini 1.5 Flash ✨' : 'ربط Gemini 🔑'}</span>
+        </button>
       </div>
 
       {/* Messages Scroll Area */}
@@ -323,6 +356,92 @@ export default function AssistantPage() {
           <Send className="w-4 h-4 rotate-180" />
         </button>
       </form>
+
+      {/* Gemini API Key Modal */}
+      {isKeyModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border border-neutral-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-neutral-800">ربط Google Gemini AI</h3>
+                  <p className="text-[10px] text-neutral-400">موديل سريع جداً واستهلاك توكينز ضئيل ✨</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsKeyModalOpen(false)}
+                className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-full hover:bg-neutral-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <label className="text-neutral-700 font-bold block">مفتاح API Key الخاص بـ Gemini:</label>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                value={tempKey}
+                onChange={(e) => setTempKey(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs font-mono bg-neutral-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <p className="text-[10px] text-neutral-500 leading-relaxed">
+                يستخدم التطبيق موديل <span className="font-bold text-purple-700">gemini-1.5-flash-8b</span>، وهو أرخص موديل رسمي من جوجل بأقل استهلاك للتوكينز (أقل من نصف سنت لكل آلاف المحادثات!).
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-2 border-t border-neutral-100">
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold text-purple-600 hover:text-purple-700 flex items-center gap-1"
+              >
+                <span>احصل على مفتاح مجاني</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+
+              <div className="flex gap-2">
+                {hasCustomKey && (
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('baytna_gemini_key');
+                      setGeminiKey('');
+                      setTempKey('');
+                      setHasCustomKey(false);
+                      setIsKeyModalOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                  >
+                    حذف
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    const trimmed = tempKey.trim();
+                    if (trimmed) {
+                      localStorage.setItem('baytna_gemini_key', trimmed);
+                      setGeminiKey(trimmed);
+                      setHasCustomKey(true);
+                    } else {
+                      localStorage.removeItem('baytna_gemini_key');
+                      setGeminiKey('');
+                      setHasCustomKey(false);
+                    }
+                    setIsKeyModalOpen(false);
+                  }}
+                  className="px-4 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-md shadow-purple-500/20 active:scale-95 transition-all"
+                >
+                  حفظ المفتاح
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

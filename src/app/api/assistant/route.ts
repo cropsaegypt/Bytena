@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   try {
     await ensureDatabaseInitialized();
     const body = await request.json();
-    const { message, persona, userId } = body;
+    const { message, persona, userId, geminiApiKey } = body;
 
     if (!message || message.trim().length === 0) {
       return NextResponse.json({ success: false, message: 'الرسالة فارغة' }, { status: 400 });
@@ -136,8 +136,8 @@ export async function POST(request: Request) {
       console.warn('Context gathering non-fatal error:', ctxErr);
     }
 
-    // 3. Generate response via Modular AI Service
-    const aiService = getAIService();
+    // 3. Generate response via Modular AI Service (Google Gemini or Local Heuristic)
+    const aiService = getAIService(geminiApiKey);
     let result;
 
     if (persona === 'fady_coach') {

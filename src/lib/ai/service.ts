@@ -538,6 +538,7 @@ export class LocalHeuristicAIService implements AIServiceInterface {
 }
 
 // 2. Google Gemini Live Service (Activated when GEMINI_API_KEY is present)
+// Using gemini-1.5-flash-8b / gemini-1.5-flash with low maxOutputTokens for minimum token consumption
 export class GeminiAIService implements AIServiceInterface {
   private apiKey: string;
 
@@ -549,29 +550,63 @@ export class GeminiAIService implements AIServiceInterface {
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const genAI = new GoogleGenerativeAI(this.apiKey);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        systemInstruction: `أنت "أم محمود" - ست البيت المصرية ومديرة الروقان في تطبيق بيتنا (Baytna).
-شخصيتك:
-- مصرية أصيلة، حنونة ودافئة، خفيفة الظل وذكية.
-- تتحدثين باللهجة المصرية اليومية الطبيعية الجميلة ("يا ست الكل"، "يا حبيبتي"، "يا فادي يا بني"، "روقان"، "زي الفل"، "صباح الفل والياسمين").
-- تساعدين رحمة وفادي في تدبير المطبخ، تنظيم البيت، التوفير، والهدوء النفسي بدون أي ضغط أو توبيخ.
-- تقدمين نصائح عملية لتجهيز الأكل والنواقص والتنظيف السريع.
-أجيبي بدفء واختصار وروح إيجابية مصرية.`,
-      });
 
-      const prompt = `رسالة رحمة أو فادي: "${userMessage}"\nسياق المنزل: ${JSON.stringify(context || {})}`;
+      const isFady = context?.userId === 'fady' || userMessage.toLowerCase().includes('فادي');
+      const speakerName = isFady ? 'فادي' : 'رحمة';
+      const partnerName = isFady ? 'رحمة' : 'فادي';
+
+      // 1. Token-saving compact context summary (~50 tokens instead of 1000+)
+      const compactContext = [
+        `المتحدث: ${speakerName}`,
+        `الشريك: ${partnerName}`,
+        `الميزانية: صرفنا ${context?.totalSpent || 0} من ${context?.monthlyBudget || 16000} ج.م (المتبقي ${context?.remainingBudget || 16000})`,
+        `النواقص: ${(context?.shoppingItems || []).slice(0, 5).map((i: any) => i.name).join('، ') || 'لا توجد نواقص، البيت عامر'}`,
+        `وجبة اليوم: ${context?.mealPlans?.[0]?.recipe?.title || context?.mealPlans?.[0]?.customName || 'لم تُحدد بعد'}`,
+        `الصلوات اليوم: ${[context?.prayers?.fajr && 'الفجر', context?.prayers?.dhuhr && 'الظهر', context?.prayers?.asr && 'العصر', context?.prayers?.maghrib && 'المغرب', context?.prayers?.isha && 'العشاء'].filter(Boolean).join(' و ') || 'لم تُعلم بعد'}`,
+      ].join('\n');
+
+      const systemInstruction = `أنت "أم محمود" - ست البيت المصرية ومديرة الروقان لتطبيق بيتنا (Baytna) لفادي ورحمة.
+شخصيتك:
+- مصرية أصيلة، حنونة ودافئة جداً، خفيفة الظل.
+- مع فادي: تخاطبينه بـ "يا فادي يا بني يا حبيب قلبي" و"يا سندي".
+- مع رحمة: تخاطبينها بـ "يا ست البنات يا رحمة يا سكرة" و"يا قمر بيتنا".
+- لو فادي طلب منك تقولي أو توصي رحمة بأكلة أو حاجة: وافقي بحب وأكدي له إنك بلغتي ست البنات.
+- أجيبي باللهجة المصرية الدافئة باختصار شديد وبذكاء (2-4 أسطر فقط) لتوفير التوكنز.`;
+
+      // Use gemini-1.5-flash-8b (Google's lowest token model)
+      let model;
+      try {
+        model = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash-8b',
+          generationConfig: {
+            maxOutputTokens: 250,
+            temperature: 0.7,
+          },
+          systemInstruction,
+        });
+      } catch {
+        model = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash',
+          generationConfig: {
+            maxOutputTokens: 250,
+            temperature: 0.7,
+          },
+          systemInstruction,
+        });
+      }
+
+      const prompt = `بيانات البيت:\n${compactContext}\n\nرسالة ${speakerName}: "${userMessage}"`;
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI response timed out')), 5000)
+        setTimeout(() => reject(new Error('AI response timed out')), 6000)
       );
+
       const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
       const text = result.response.text();
 
       // Check if user is asking Om Mahmoud to tell their partner
       let bridgeNotification = undefined;
       const lower = userMessage.toLowerCase();
-      const isFady = context?.userId === 'fady' || lower.includes('فادي');
-      if (isFady && (lower.includes('قولي لرحمة') || lower.includes('بلغي رحمة') || lower.includes('وصي رحمة') || lower.includes('قوليلها') || lower.includes('نفسي في') || lower.includes('نفسي أكل') || lower.includes('نفسي اكل'))) {
+      if (isFady && (lower.includes('قولي لرحمة') || lower.includes('بلغي رحمة') || lower.includes('وصي رحمة') || lower.includes('قوليلها') || lower.includes('نفسي في') || lower.includes('نفسي أكل') || lower.includes('نفسي اكل') || lower.includes('عايز رحمة'))) {
         const cleanContent = userMessage.replace(/^(قولي\s*ل*رحمة|بلغي\s*رحمة|وصي\s*رحمة|قوليلها|يا\s*أم\s*محمود\s*قولي\s*ل*رحمة)/gi, '').trim();
         bridgeNotification = {
           fromUserId: 'fady',
@@ -580,7 +615,7 @@ export class GeminiAIService implements AIServiceInterface {
           body: `يا رحمة يا ست البنات وقمر بيتنا، فادي حبيبك وصاني أقولك: "${cleanContent || userMessage}". ريحي بالك ومتشيليش هم يا غالية 💕`,
           emoji: '👵🏼',
         };
-      } else if (!isFady && (lower.includes('قولي لفادي') || lower.includes('بلغي فادي') || lower.includes('وصي فادي') || lower.includes('قوليله'))) {
+      } else if (!isFady && (lower.includes('قولي لفادي') || lower.includes('بلغي فادي') || lower.includes('وصي فادي') || lower.includes('قوليله') || lower.includes('عايزة فادي'))) {
         const cleanContent = userMessage.replace(/^(قولي\s*ل*فادي|بلغي\s*فادي|وصي\s*فادي|قوليله|يا\s*أم\s*محمود\s*قولي\s*ل*فادي)/gi, '').trim();
         bridgeNotification = {
           fromUserId: 'rahma',
@@ -754,8 +789,8 @@ export class GeminiAIService implements AIServiceInterface {
 }
 
 // 3. Factory function
-export function getAIService(): AIServiceInterface {
-  const apiKey = process.env.GEMINI_API_KEY;
+export function getAIService(customKey?: string): AIServiceInterface {
+  const apiKey = (customKey && customKey.trim().length > 10) ? customKey.trim() : process.env.GEMINI_API_KEY;
   if (apiKey && apiKey.trim().length > 10) {
     return new GeminiAIService(apiKey.trim());
   }
