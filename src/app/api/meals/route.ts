@@ -24,198 +24,54 @@ export async function GET(request: Request) {
       (r) => r.suggestedByUserId === 'fady' || r.isFavoriteFady
     );
 
-    const FALLBACK_RECIPES = [
-      {
-        id: 'r1',
-        title: 'مكرونة بالبشاميل بلدي أصلية',
-        category: 'LUNCH',
-        servings: 4,
-        prepTimeMins: 50,
-        calories: 580,
-        proteinG: 32,
-        carbsG: 65,
-        fatG: 22,
-        estimatedCost: 140,
-        isFavoriteFady: true,
-        isFavoriteRahma: true,
-        ingredientsJson: JSON.stringify([
-          { name: 'مكرونة قلم', amount: 500, unit: 'جرام' },
-          { name: 'لحم مفروم', amount: 350, unit: 'جرام' },
-          { name: 'لبن حليب', amount: 1, unit: 'لتر' }
-        ]),
-        instructionsJson: JSON.stringify(['سلق المكرونة', 'تعصيج اللحم', 'عمل البشاميل', 'الخبز بالفرن'])
-      },
-      {
-        id: 'r2',
-        title: 'صينية فراخ مشوية بالبطاطس والليمون',
-        category: 'LUNCH',
-        servings: 3,
-        prepTimeMins: 45,
-        calories: 460,
-        proteinG: 42,
-        carbsG: 35,
-        fatG: 14,
-        estimatedCost: 130,
-        isFavoriteFady: true,
-        isFavoriteRahma: true,
-        ingredientsJson: JSON.stringify([
-          { name: 'دجاج مقطع', amount: 1, unit: 'كجم' },
-          { name: 'بطاطس', amount: 500, unit: 'جرام' }
-        ]),
-        instructionsJson: JSON.stringify(['تتبيل الدجاج والبطاطس', 'الخبز بالفرن'])
-      },
-      {
-        id: 'r3',
-        title: 'شوفان بالحليب والموز والعسل 🍳',
-        category: 'BREAKFAST',
-        servings: 2,
-        prepTimeMins: 10,
-        calories: 380,
-        proteinG: 18,
-        carbsG: 55,
-        fatG: 11,
-        estimatedCost: 35,
-        isFavoriteFady: true,
-        isFavoriteRahma: true,
-        ingredientsJson: JSON.stringify([
-          { name: 'شوفان حبة كاملة', amount: 100, unit: 'جرام' },
-          { name: 'حليب', amount: 400, unit: 'مل' }
-        ]),
-        instructionsJson: JSON.stringify(['غلي الحليب وإضافة الشوفان', 'إضافة العسل والموز'])
-      }
-    ];
-
-    const finalRecipes = recipes.length > 0 ? recipes : FALLBACK_RECIPES;
-
-    const finalPlans = mealPlans.length > 0 ? mealPlans : [
-      {
-        id: 'p1',
-        date: new Date().toISOString(),
-        mealType: 'BREAKFAST',
-        customName: 'شوفان بالحليب والموز والعسل 🍳',
-        notes: 'فطار صحي خفيف',
-        recipe: finalRecipes[2],
-      },
-      {
-        id: 'p2',
-        date: new Date().toISOString(),
-        mealType: 'LUNCH',
-        customName: 'مكرونة بالبشاميل بلدي أصلية',
-        notes: 'فادي طلبها ورحمة عملتها بكل حب ❤️',
-        recipe: finalRecipes[0],
-      },
-    ];
-
-    const finalWishlist = fadyWishlist.length > 0 ? fadyWishlist : [
-      finalRecipes[0],
-      finalRecipes[1]
-    ];
-
     return NextResponse.json({
       success: true,
-      recipes: finalRecipes,
-      mealPlans: finalPlans,
-      fadyWishlist: finalWishlist,
+      recipes: recipes || [],
+      mealPlans: mealPlans || [],
+      fadyWishlist: fadyWishlist || [],
     });
   } catch (err: any) {
     return NextResponse.json({
       success: true,
-      recipes: [
-        {
-          id: 'r1',
-          title: 'مكرونة بالبشاميل بلدي أصلية',
-          category: 'LUNCH',
-          servings: 4,
-          prepTimeMins: 50,
-          calories: 580,
-          proteinG: 32,
-          carbsG: 65,
-          fatG: 22,
-          estimatedCost: 140,
-          isFavoriteFady: true,
-          isFavoriteRahma: true,
-          ingredientsJson: JSON.stringify([
-            { name: 'مكرونة قلم', amount: 500, unit: 'جرام' },
-            { name: 'لحم مفروم', amount: 350, unit: 'جرام' },
-            { name: 'لبن حليب', amount: 1, unit: 'لتر' }
-          ]),
-          instructionsJson: JSON.stringify(['سلق المكرونة', 'تعصيج اللحم', 'عمل البشاميل', 'الخبز بالفرن'])
-        },
-        {
-          id: 'r2',
-          title: 'صينية فراخ مشوية بالبطاطس والليمون',
-          category: 'LUNCH',
-          servings: 3,
-          prepTimeMins: 45,
-          calories: 460,
-          proteinG: 42,
-          carbsG: 35,
-          fatG: 14,
-          estimatedCost: 130,
-          isFavoriteFady: true,
-          isFavoriteRahma: true,
-          ingredientsJson: JSON.stringify([
-            { name: 'دجاج مقطع', amount: 1, unit: 'كجم' },
-            { name: 'بطاطس', amount: 500, unit: 'جرام' }
-          ]),
-          instructionsJson: JSON.stringify(['تتبيل الدجاج والبطاطس', 'الخبز بالفرن'])
-        }
-      ],
-      mealPlans: [
-        {
-          id: 'p1',
-          date: new Date().toISOString(),
-          mealType: 'LUNCH',
-          customName: 'مكرونة بالبشاميل بلدي أصلية',
-          notes: 'فادي طلبها ورحمة عملتها بكل حب ❤️'
-        }
-      ],
-      fadyWishlist: [
-        { id: 'w1', title: 'مكرونة بالبشاميل بلدي أصلية', calories: 580, proteinG: 32, estimatedCost: 140 }
-      ]
+      recipes: [],
+      mealPlans: [],
+      fadyWishlist: [],
     });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await ensureDatabaseInitialized();
     const body = await request.json();
     const { action } = body;
 
-    // 0. AI Recipe Assistant Suggestion
+    // AI suggestion for ingredients/steps
     if (action === 'suggest_recipe_details') {
       const { mealName } = body;
-      if (!mealName || !mealName.trim()) {
-        return NextResponse.json({ success: false, message: 'يرجى إدخال اسم الأكلة أو الوجبة' }, { status: 400 });
-      }
-
       const aiService = getAIService();
-      const details = await aiService.generateRecipeDetails(mealName.trim());
-
-      return NextResponse.json({
-        success: true,
-        details,
-        message: 'تم استحضار المكونات وخطوات التحضير بنجاح، يمكنك مراجعتها وتعديلها قبل الحفظ'
-      });
+      const details = await aiService.generateRecipeDetails(mealName || '');
+      return NextResponse.json({ success: true, details });
     }
 
     // 1. Add new recipe
     if (action === 'create_recipe') {
       const { title, category, servings, prepTimeMins, ingredients, instructions, calories, proteinG, carbsG, fatG, estimatedCost, suggestedByUserId } = body;
 
-      // Estimate nutrition if not fully provided
       let finalCalories = calories;
       let finalProtein = proteinG;
       let finalCarbs = carbsG;
       let finalFat = fatG;
 
       if (!calories || calories === 0) {
-        const aiService = getAIService();
-        const est = await aiService.estimateMealNutrition(title);
-        finalCalories = est.calories;
-        finalProtein = est.proteinG;
-        finalCarbs = est.carbsG;
-        finalFat = est.fatG;
+        try {
+          const aiService = getAIService();
+          const est = await aiService.estimateMealNutrition(title);
+          finalCalories = est.calories;
+          finalProtein = est.proteinG;
+          finalCarbs = est.carbsG;
+          finalFat = est.fatG;
+        } catch {}
       }
 
       const recipe = await prisma.recipe.create({
@@ -240,7 +96,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, recipe });
     }
 
-    // 2. Schedule a meal plan
+    // 2. Edit recipe
+    if (action === 'edit_recipe') {
+      const { id, title, category, servings, prepTimeMins, ingredients, instructions, estimatedCost } = body;
+
+      const updated = await prisma.recipe.update({
+        where: { id },
+        data: {
+          title,
+          category: category || 'LUNCH',
+          servings: servings ? parseInt(servings) : 2,
+          prepTimeMins: prepTimeMins ? parseInt(prepTimeMins) : 30,
+          ingredientsJson: JSON.stringify(ingredients || []),
+          instructionsJson: JSON.stringify(instructions || []),
+          estimatedCost: estimatedCost ? parseFloat(estimatedCost) : undefined,
+        },
+      });
+
+      return NextResponse.json({ success: true, recipe: updated });
+    }
+
+    // 3. Delete recipe
+    if (action === 'delete_recipe') {
+      const { id } = body;
+      await prisma.mealPlan.deleteMany({ where: { recipeId: id } });
+      await prisma.recipe.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+
+    // 4. Schedule a meal plan
     if (action === 'schedule_meal') {
       const { date, mealType, recipeId, customName, servings, notes } = body;
       const targetDate = new Date(date || new Date());
@@ -261,7 +145,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, plan });
     }
 
-    // 3. Generate Shopping List from Meals
+    // 5. Delete meal plan
+    if (action === 'delete_meal_plan') {
+      const { id } = body;
+      await prisma.mealPlan.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+
+    // 6. Generate Shopping List from Meals
     if (action === 'generate_shopping') {
       const { mealPlanIds } = body;
       let plans;
@@ -271,7 +162,6 @@ export async function POST(request: Request) {
           include: { recipe: true },
         });
       } else {
-        // Default to all planned meals for today onwards
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         plans = await prisma.mealPlan.findMany({
@@ -290,7 +180,6 @@ export async function POST(request: Request) {
         try {
           const ingredients = JSON.parse(plan.recipe.ingredientsJson);
           for (const ing of ingredients) {
-            // Check if existing shopping item exists
             const existing = await prisma.shoppingItem.findFirst({
               where: {
                 householdId: 'baytna-main',
@@ -300,7 +189,6 @@ export async function POST(request: Request) {
             });
 
             if (existing) {
-              // Merge quantities
               await prisma.shoppingItem.update({
                 where: { id: existing.id },
                 data: {

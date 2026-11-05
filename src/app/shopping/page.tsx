@@ -12,25 +12,16 @@ import {
   CheckCircle2, 
   Circle, 
   Trash2, 
-  Filter, 
+  Edit3,
   Search,
   User,
-  PackageCheck,
-  Tag
+  PackageCheck
 } from 'lucide-react';
-
-const DEFAULT_SHOPPING_ITEMS = [
-  { id: 's1', name: 'لبن حليب طبيعي (المراعي / جهينة)', category: 'GROCERIES', quantity: 2, unit: 'لتر', needBuyQty: 2, inStockQty: 0, estimatedPrice: 70, isPurchased: false, assignedToUserId: 'fady' },
-  { id: 's2', name: 'لحم مفروم بلدي قليل الدهن', category: 'GROCERIES', quantity: 1, unit: 'كجم', needBuyQty: 1, inStockQty: 0, estimatedPrice: 220, isPurchased: false, assignedToUserId: 'fady' },
-  { id: 's3', name: 'مسحوق غسيل أوتوماتيك أريال', category: 'CLEANING', quantity: 1, unit: 'عبوة', needBuyQty: 1, inStockQty: 0, estimatedPrice: 240, isPurchased: false, assignedToUserId: 'rahma' },
-  { id: 's4', name: 'موز وتفاح أحمر طازج', category: 'GROCERIES', quantity: 2, unit: 'كجم', needBuyQty: 2, inStockQty: 1, estimatedPrice: 80, isPurchased: true, assignedToUserId: 'fady' },
-  { id: 's5', name: 'مناديل مطبخ رول مضغوط', category: 'HOUSEHOLD', quantity: 2, unit: 'رول', needBuyQty: 2, inStockQty: 0, estimatedPrice: 45, isPurchased: false, assignedToUserId: 'rahma' },
-];
 
 export default function ShoppingPage() {
   const { currentUser } = useUser();
   const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<any[]>(DEFAULT_SHOPPING_ITEMS);
+  const [items, setItems] = useState<any[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -45,6 +36,15 @@ export default function ShoppingPage() {
   const [unit, setUnit] = useState('قطعة');
   const [estimatedPrice, setEstimatedPrice] = useState('');
   const [assignedToUserId, setAssignedToUserId] = useState(currentUser.id);
+
+  // Edit item state
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('GROCERIES');
+  const [editQuantity, setEditQuantity] = useState('1');
+  const [editUnit, setEditUnit] = useState('قطعة');
+  const [editPrice, setEditPrice] = useState('');
+  const [editAssignedTo, setEditAssignedTo] = useState('fady');
 
   const fetchItems = async () => {
     try {
@@ -73,7 +73,7 @@ export default function ShoppingPage() {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.lang = 'ar-EG'; // Egyptian Arabic
+    recognition.lang = 'ar-EG';
     recognition.continuous = false;
     recognition.interimResults = false;
 
@@ -88,49 +88,123 @@ export default function ShoppingPage() {
         setIsListening(false);
       };
 
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => setIsListening(false);
     } else {
       recognition.stop();
       setIsListening(false);
     }
   };
 
-  // Toggle purchased
-  const handleTogglePurchase = async (id: string, currentStatus: boolean) => {
+  // Add Item
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
     try {
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, isPurchased: !currentStatus } : item))
-      );
+      const res = await fetch('/api/shopping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_item',
+          name: name.trim(),
+          category,
+          quantity,
+          unit,
+          estimatedPrice,
+          assignedToUserId,
+          addedByVoiceOrAi: isListening,
+        }),
+      });
 
-      // Trigger love notification when item is purchased
-      if (!currentStatus) {
-        const itemObj = items.find((i) => i.id === id);
-        const isFady = currentUser.id === 'fady';
-        triggerLoveNotification({
-          type: 'SHOPPING_DONE',
-          fromUserId: isFady ? 'fady' : 'rahma',
-          toUserId: isFady ? 'rahma' : 'fady',
-          title: isFady ? 'فادي جاب طلبات من البيت 🛍️❤️' : 'رحمة جهزت غرض من الطلبات ✨',
-          body: isFady
-            ? `فادي اشترى (${itemObj?.name || 'طلب من النواقص'}) وبيقولك تسلم إيدك مقدماً يا قمر بيتنا 💕`
-            : `رحمة اشترت (${itemObj?.name || 'غرض للبيت'}) وبتجهز البيت بحب ❤️`,
-          emoji: '🛍️',
-        });
+      const json = await res.json();
+      if (json.success) {
+        setItems((prev) => [json.item, ...prev]);
+        setIsAddOpen(false);
+        setName('');
+        setQuantity('1');
+        setEstimatedPrice('');
       }
+    } catch (e) {
+      alert('حدث خطأ أثناء إضافة الغرض');
+    }
+  };
 
+  // Open Edit Modal
+  const openEditModal = (item: any) => {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditCategory(item.category || 'GROCERIES');
+    setEditQuantity(String(item.needBuyQty || item.quantity || 1));
+    setEditUnit(item.unit || 'قطعة');
+    setEditPrice(item.estimatedPrice ? String(item.estimatedPrice) : '');
+    setEditAssignedTo(item.assignedToUserId || currentUser.id);
+  };
+
+  // Save Edited Item
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem || !editName.trim()) return;
+
+    try {
+      const res = await fetch('/api/shopping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit_item',
+          id: editingItem.id,
+          name: editName.trim(),
+          category: editCategory,
+          quantity: editQuantity,
+          unit: editUnit,
+          estimatedPrice: editPrice,
+          assignedToUserId: editAssignedTo,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setItems((prev) =>
+          prev.map((it) => (it.id === editingItem.id ? json.item : it))
+        );
+        setEditingItem(null);
+      }
+    } catch (e) {
+      alert('حدث خطأ أثناء تعديل الغرض');
+    }
+  };
+
+  // Toggle purchased state
+  const handleTogglePurchase = async (itemId: string, currentStatus: boolean) => {
+    const targetItem = items.find((i) => i.id === itemId);
+    const newStatus = !currentStatus;
+
+    // Optimistic Update
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, isPurchased: newStatus } : item
+      )
+    );
+
+    // If marked as bought, notify partner!
+    if (newStatus && targetItem) {
+      triggerLoveNotification({
+        type: 'SHOPPING_DONE',
+        fromUserId: currentUser.id === 'fady' ? 'fady' : 'rahma',
+        toUserId: currentUser.id === 'fady' ? 'rahma' : 'fady',
+        title: `اشتريت طلب من البيت! 🛍️✨`,
+        body: `${currentUser.displayName} اشترى "${targetItem.name}" وقفل الطلب من القائمة بكل حب ❤️`,
+      });
+    }
+
+    try {
       await fetch('/api/shopping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'toggle_purchase',
-          id,
-          isPurchased: !currentStatus,
+          id: itemId,
+          isPurchased: newStatus,
           purchasedByUserId: currentUser.id,
         }),
       });
@@ -139,54 +213,30 @@ export default function ShoppingPage() {
     }
   };
 
-  // Delete item
-  const handleDeleteItem = async (id: string) => {
+  // Delete Item
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm('هل تريد حذف هذا الغرض من القائمة؟')) return;
+
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
+
     try {
-      setItems((prev) => prev.filter((item) => item.id !== id));
       await fetch('/api/shopping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete_item', id }),
+        body: JSON.stringify({
+          action: 'delete_item',
+          id: itemId,
+        }),
       });
     } catch (e) {
       fetchItems();
     }
   };
 
-  // Add Item
-  const handleAddItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name) return;
-
-    try {
-      const res = await fetch('/api/shopping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'add_item',
-          name,
-          category,
-          quantity,
-          unit,
-          estimatedPrice,
-          assignedToUserId,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setName('');
-        setEstimatedPrice('');
-        setIsAddOpen(false);
-        fetchItems();
-      }
-    } catch (e) {
-      alert('خطأ أثناء الإضافة');
-    }
-  };
-
-  // Filter items
+  // Filtering
   const filteredItems = items.filter((item) => {
-    const matchesCategory = categoryFilter === 'ALL' || item.category === categoryFilter;
+    const matchesCategory =
+      categoryFilter === 'ALL' || item.category === categoryFilter;
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
@@ -203,7 +253,7 @@ export default function ShoppingPage() {
   }
 
   return (
-    <div className="space-y-4 pb-12 animate-fadeIn">
+    <div className="space-y-4 pb-12 animate-fadeIn w-full max-w-full">
       {/* Segmented Switcher for Shopping & Finance */}
       <FinanceShoppingTabs />
       
@@ -279,31 +329,38 @@ export default function ShoppingPage() {
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-xs font-extrabold text-neutral-700">
-            مطلوب شراؤه ({pendingItems.length})
+            النواقص المطلوب شراؤها ({pendingItems.length})
           </h2>
-          <span className="text-[11px] text-neutral-400">اضغط للاعتماد والإنجاز</span>
+          {pendingItems.length > 0 && (
+            <span className="text-[11px] text-neutral-400">
+              إجمالي تقديري:{' '}
+              {pendingItems.reduce((acc, curr) => acc + (curr.estimatedPrice || 0), 0)} ج.م
+            </span>
+          )}
         </div>
 
         {pendingItems.length === 0 ? (
-          <div className="p-6 bg-white border border-neutral-200/80 rounded-2xl text-center">
-            <PackageCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-            <p className="text-xs font-bold text-neutral-800">كل الطلبات تم شراؤها أو القائمة فارغة!</p>
-            <p className="text-[11px] text-neutral-400 mt-0.5">البيت عامر بكل الخير ❤️</p>
+          <div className="p-8 text-center bg-white border border-neutral-200/80 rounded-2xl space-y-2">
+            <PackageCheck className="w-10 h-10 text-emerald-500 mx-auto stroke-[1.5]" />
+            <h3 className="font-extrabold text-sm text-neutral-800">سلة طلبات البيت مكتملة! ✨</h3>
+            <p className="text-xs text-neutral-400 max-w-xs mx-auto">
+              مفيش أي نواقص مسجلة حالياً، البيت عامر ومكتمل يا فادي ورحمة ❤️ تقدر تضغط على (+ إضافة غرض) لتسجيل أي نواقص جديدة.
+            </p>
           </div>
         ) : (
           pendingItems.map((item) => (
             <div
               key={item.id}
-              className="p-3 bg-white border border-neutral-200/80 rounded-2xl flex items-center justify-between hover:border-emerald-300 transition-all shadow-sm"
+              className="p-3 bg-white border border-neutral-200/80 rounded-2xl flex items-center justify-between shadow-sm hover:border-emerald-300 transition-all gap-2"
             >
               <div
                 onClick={() => handleTogglePurchase(item.id, false)}
-                className="flex items-center gap-3 cursor-pointer flex-1"
+                className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
               >
                 <Circle className="w-5 h-5 text-neutral-300 hover:text-emerald-500 transition-colors shrink-0" />
-                <div>
-                  <h3 className="font-extrabold text-sm text-neutral-800">{item.name}</h3>
-                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-sm text-neutral-800 truncate">{item.name}</h3>
+                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500 flex-wrap">
                     <span className="font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded">
                       {item.needBuyQty} {item.unit}
                     </span>
@@ -320,13 +377,23 @@ export default function ShoppingPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => handleDeleteItem(item.id)}
-                className="p-2 text-neutral-300 hover:text-rose-500 transition-colors"
-                title="حذف"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {/* Action Buttons: Edit and Delete */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => openEditModal(item)}
+                  className="p-1.5 text-neutral-400 hover:text-brand-600 hover:bg-neutral-100 rounded-lg transition-colors"
+                  title="تعديل الغرض"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDeleteItem(item.id)}
+                  className="p-1.5 text-neutral-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                  title="حذف"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -343,31 +410,41 @@ export default function ShoppingPage() {
             {purchasedItems.map((item) => (
               <div
                 key={item.id}
-                className="p-2.5 bg-neutral-50 border border-neutral-200/50 rounded-xl flex items-center justify-between"
+                className="p-2.5 bg-neutral-50 border border-neutral-200/50 rounded-xl flex items-center justify-between gap-2"
               >
                 <div
                   onClick={() => handleTogglePurchase(item.id, true)}
-                  className="flex items-center gap-2.5 cursor-pointer flex-1"
+                  className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0"
                 >
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span className="text-xs text-neutral-500 font-medium line-through">
+                  <span className="text-xs text-neutral-500 font-medium line-through truncate">
                     {item.name} ({item.quantity} {item.unit})
                   </span>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteItem(item.id)}
-                  className="p-1 text-neutral-300 hover:text-rose-500"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => openEditModal(item)}
+                    className="p-1 text-neutral-400 hover:text-brand-600"
+                    title="تعديل"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteItem(item.id)}
+                    className="p-1 text-neutral-400 hover:text-rose-500"
+                    title="حذف"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* ADD ITEM MODAL */}
+      {/* MODAL 1: ADD ITEM MODAL */}
       {isAddOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
           <form
@@ -390,7 +467,7 @@ export default function ShoppingPage() {
               <input
                 type="text"
                 required
-                placeholder="مثال: زيت زيتون بكر، مناديل مطبخ..."
+                placeholder="مثال: زيت زيتون، دقيق، مناديل..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -419,72 +496,203 @@ export default function ShoppingPage() {
                 >
                   <option value="قطعة">قطعة / حبة</option>
                   <option value="كجم">كيلوجرام (كجم)</option>
+                  <option value="جرام">جرام</option>
                   <option value="لتر">لتر</option>
-                  <option value="كيس">كيس / عبوة</option>
-                  <option value="علبة">علبة</option>
-                  <option value="باكيت">باكيت</option>
+                  <option value="عبوة">عبوة / باكت</option>
+                  <option value="كيس">كيس</option>
+                  <option value="كرتونة">كرتونة</option>
                 </select>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">السعر التقديري (ج.م)</label>
+                <input
+                  type="number"
+                  placeholder="اختياري"
+                  value={estimatedPrice}
+                  onChange={(e) => setEstimatedPrice(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs text-center"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-neutral-700 mb-1">التصنيف</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-2.5 py-2 rounded-xl border border-neutral-200 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-bold"
                 >
                   <option value="GROCERIES">المطبخ والأكل</option>
-                  <option value="CLEANING">منظفات وغسيل</option>
-                  <option value="HOUSEHOLD">احتياجات البيت</option>
-                  <option value="PHARMACY">الصيدلية</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">المسؤول عن الشراء</label>
-                <select
-                  value={assignedToUserId}
-                  onChange={(e) => setAssignedToUserId(e.target.value)}
-                  className="w-full px-2.5 py-2 rounded-xl border border-neutral-200 text-xs"
-                >
-                  <option value="fady">فادي 👨🏻‍💻</option>
-                  <option value="rahma">رحمة 👩🏻‍🍳</option>
+                  <option value="CLEANING">المنظفات والغسيل</option>
+                  <option value="HOUSEHOLD">احتياجات المنزل</option>
+                  <option value="PHARMACY">الصيدلية والأدوية</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1">السعر التقديري (اختياري)</label>
-              <input
-                type="number"
-                placeholder="0.00 ج.م"
-                value={estimatedPrice}
-                onChange={(e) => setEstimatedPrice(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs"
-              />
+              <label className="block text-xs font-bold text-neutral-700 mb-1">مين هيشتريه؟</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAssignedToUserId('fady')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    assignedToUserId === 'fady'
+                      ? 'bg-rose-50 text-brand-700 border-brand-300'
+                      : 'bg-neutral-50 text-neutral-600 border-neutral-200'
+                  }`}
+                >
+                  👨🏻‍💻 فادي
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssignedToUserId('rahma')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    assignedToUserId === 'rahma'
+                      ? 'bg-rose-50 text-brand-700 border-brand-300'
+                      : 'bg-neutral-50 text-neutral-600 border-neutral-200'
+                  }`}
+                >
+                  👩🏻‍🍳 رحمة
+                </button>
+              </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <button
-                type="submit"
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md transition-all"
-              >
-                إضافة للطلبات 🛒
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAddOpen(false)}
-                className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl font-bold text-xs"
-              >
-                إلغاء
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+            >
+              إضافة إلى طلبات البيت ✨
+            </button>
           </form>
         </div>
       )}
 
+      {/* MODAL 2: EDIT ITEM MODAL */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <form
+            onSubmit={handleSaveEdit}
+            className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-extrabold text-sm text-neutral-800">تعديل الغرض ✏️</h3>
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">اسم المنتج</label>
+              <input
+                type="text"
+                required
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">الكمية</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  required
+                  value={editQuantity}
+                  onChange={(e) => setEditQuantity(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-bold text-center"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">الوحدة</label>
+                <select
+                  value={editUnit}
+                  onChange={(e) => setEditUnit(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-bold"
+                >
+                  <option value="قطعة">قطعة / حبة</option>
+                  <option value="كجم">كيلوجرام (كجم)</option>
+                  <option value="جرام">جرام</option>
+                  <option value="لتر">لتر</option>
+                  <option value="عبوة">عبوة / باكت</option>
+                  <option value="كيس">كيس</option>
+                  <option value="كرتونة">كرتونة</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">السعر التقديري (ج.م)</label>
+                <input
+                  type="number"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs text-center"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">التصنيف</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-bold"
+                >
+                  <option value="GROCERIES">المطبخ والأكل</option>
+                  <option value="CLEANING">المنظفات والغسيل</option>
+                  <option value="HOUSEHOLD">احتياجات المنزل</option>
+                  <option value="PHARMACY">الصيدلية والأدوية</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">المسؤول عن الشراء</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditAssignedTo('fady')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    editAssignedTo === 'fady'
+                      ? 'bg-rose-50 text-brand-700 border-brand-300'
+                      : 'bg-neutral-50 text-neutral-600 border-neutral-200'
+                  }`}
+                >
+                  👨🏻‍💻 فادي
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditAssignedTo('rahma')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    editAssignedTo === 'rahma'
+                      ? 'bg-rose-50 text-brand-700 border-brand-300'
+                      : 'bg-neutral-50 text-neutral-600 border-neutral-200'
+                  }`}
+                >
+                  👩🏻‍🍳 رحمة
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-brand-600/20 active:scale-95 transition-all"
+            >
+              حفظ التعديلات 💾
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

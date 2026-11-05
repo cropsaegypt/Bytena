@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAIService } from '@/lib/ai/service';
 import { ensureDatabaseInitialized } from '@/lib/init-db';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +22,7 @@ export async function GET(request: Request) {
         id: 'hp-' + targetUserId,
         userId: targetUserId,
         heightCm: targetUserId === 'fady' ? 182 : 166,
-        currentWeightKg: targetUserId === 'fady' ? 85.5 : 65.0,
+        currentWeightKg: targetUserId === 'fady' ? 85.0 : 65.0,
         targetWeightKg: targetUserId === 'fady' ? 78.0 : 59.0,
         activityLevel: targetUserId === 'fady' ? 'ACTIVE' : 'MODERATE',
         dailyCalorieTarget: targetUserId === 'fady' ? 2350 : 1850,
@@ -31,7 +30,7 @@ export async function GET(request: Request) {
         macrosProteinG: targetUserId === 'fady' ? 155 : 105,
         macrosCarbsG: targetUserId === 'fady' ? 230 : 195,
         macrosFatG: targetUserId === 'fady' ? 65 : 50,
-        isSharedWithPartner: false,
+        isSharedWithPartner: true,
         createdAt: new Date(),
         updatedAt: new Date(),
         user: { displayName: targetUserId === 'fady' ? 'فادي' : 'رحمة', avatar: targetUserId === 'fady' ? '👨🏻‍💻' : '👩🏻‍🍳' },
@@ -46,44 +45,23 @@ export async function GET(request: Request) {
       }, { status: 403 });
     }
 
-    let weightLogs = await prisma.weightLog.findMany({
+    const weightLogs = await prisma.weightLog.findMany({
       where: { userId: targetUserId },
       orderBy: { loggedAt: 'desc' },
       take: 30,
     });
 
-    if (weightLogs.length === 0) {
-      weightLogs = [
-        { id: 'w1', userId: targetUserId, weightKg: targetUserId === 'fady' ? 85.5 : 65.0, loggedAt: new Date(), notes: 'وزن الصباح على الريق' },
-        { id: 'w2', userId: targetUserId, weightKg: targetUserId === 'fady' ? 86.2 : 65.6, loggedAt: new Date(Date.now() - 86400000 * 3), notes: 'تحسن في قياسات الجسم' },
-        { id: 'w3', userId: targetUserId, weightKg: targetUserId === 'fady' ? 87.0 : 66.2, loggedAt: new Date(Date.now() - 86400000 * 7), notes: 'بداية الالتزام' },
-      ] as any;
-    }
-
-    let workoutLogs = await prisma.workoutLog.findMany({
+    const workoutLogs = await prisma.workoutLog.findMany({
       where: { userId: targetUserId },
       orderBy: { date: 'desc' },
       take: 20,
     });
 
-    if (workoutLogs.length === 0) {
-      workoutLogs = [
-        {
-          id: 'wk1',
-          userId: targetUserId,
-          title: targetUserId === 'fady' ? 'تمرين بنش وترايسبس بالجيم 💪' : 'كارديو وتمارين منزلية 🧘‍♀️',
-          category: targetUserId === 'fady' ? 'GYM' : 'HOME',
-          durationMins: targetUserId === 'fady' ? 55 : 40,
-          burnedCalories: targetUserId === 'fady' ? 420 : 260,
-          date: new Date(),
-          exercisesJson: JSON.stringify([
-            { name: targetUserId === 'fady' ? 'بنش برس' : 'سكوات وزن الجسم', sets: 4, reps: 12, weight: targetUserId === 'fady' ? 65 : 0 },
-            { name: targetUserId === 'fady' ? 'تجميع دمبلز' : 'بلانك', sets: 3, reps: 15, weight: 0 },
-          ]),
-          notes: 'أداء عالي وطاقة ممتازة',
-        }
-      ] as any;
-    }
+    const medicalRecords = await prisma.medicalRecord.findMany({
+      where: { userId: targetUserId },
+      orderBy: { testDate: 'desc' },
+      take: 20,
+    });
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -97,64 +75,44 @@ export async function GET(request: Request) {
       },
     });
 
-    const totalWaterToday = waterLogsToday.reduce((sum, item) => sum + item.amountMl, 0);
-
-    const medicalRecords = await prisma.medicalRecord.findMany({
-      where: {
-        userId: targetUserId,
-        ...(requesterUserId !== targetUserId ? { isSharedWithPartner: true } : {}),
-      },
-      orderBy: { testDate: 'desc' },
-    });
+    const totalWaterToday = waterLogsToday.reduce((sum, item) => sum + (item.amountMl || 0), 0);
 
     return NextResponse.json({
       success: true,
       profile,
-      weightLogs,
-      workoutLogs,
+      weightLogs: weightLogs || [],
+      workoutLogs: workoutLogs || [],
+      medicalRecords: medicalRecords || [],
       totalWaterToday,
-      medicalRecords,
     });
   } catch (err: any) {
     return NextResponse.json({
       success: true,
       profile: {
-        userId: targetUserId,
         heightCm: targetUserId === 'fady' ? 182 : 166,
-        currentWeightKg: targetUserId === 'fady' ? 85.5 : 65.0,
+        currentWeightKg: targetUserId === 'fady' ? 85.0 : 65.0,
         targetWeightKg: targetUserId === 'fady' ? 78.0 : 59.0,
-        activityLevel: targetUserId === 'fady' ? 'ACTIVE' : 'MODERATE',
         dailyCalorieTarget: targetUserId === 'fady' ? 2350 : 1850,
         dailyWaterTargetMl: targetUserId === 'fady' ? 3200 : 2600,
         macrosProteinG: targetUserId === 'fady' ? 155 : 105,
         macrosCarbsG: targetUserId === 'fady' ? 230 : 195,
         macrosFatG: targetUserId === 'fady' ? 65 : 50,
-        isSharedWithPartner: false,
+        isSharedWithPartner: true,
+        user: { displayName: targetUserId === 'fady' ? 'فادي' : 'رحمة', avatar: targetUserId === 'fady' ? '👨🏻‍💻' : '👩🏻‍🍳' },
       },
-      weightLogs: [
-        { id: 'w1', weightKg: targetUserId === 'fady' ? 85.5 : 65.0, loggedAt: new Date().toISOString(), notes: 'وزن الصباح على الريق' },
-        { id: 'w2', weightKg: targetUserId === 'fady' ? 86.2 : 65.6, loggedAt: new Date(Date.now() - 86400000 * 3).toISOString() },
-        { id: 'w3', weightKg: targetUserId === 'fady' ? 87.0 : 66.2, loggedAt: new Date(Date.now() - 86400000 * 7).toISOString() },
-      ],
-      workoutLogs: [
-        { id: 'wo1', title: targetUserId === 'fady' ? 'تمرين بنش وترايسبس بالجيم' : 'كارديو ومقاومة منزلية', durationMins: 50, burnedCalories: 380, date: new Date().toISOString() },
-      ],
-      totalWaterToday: 1500,
-      medicalRecords: [
-        { id: 'm1', title: 'تحليل دهون وكوليسترول Lipid Profile', testType: 'BLOOD_TEST', testDate: new Date().toISOString(), aiSummary: 'النتائج ممتازة، الكوليسترول الكلي ضمن المعدل الطبيعي ومستوى الدهون النافعة مرتفع.' },
-      ],
+      weightLogs: [],
+      workoutLogs: [],
+      medicalRecords: [],
+      totalWaterToday: 0,
     });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await ensureDatabaseInitialized();
     const body = await request.json();
     const { action, userId } = body;
-
-    if (!userId) {
-      return NextResponse.json({ success: false, message: 'معرف المستخدم مطلوب' }, { status: 400 });
-    }
 
     // 1. Log weight
     if (action === 'log_weight') {
@@ -169,26 +127,22 @@ export async function POST(request: Request) {
         },
       });
 
-      // Update current weight in profile
       await prisma.healthProfile.update({
         where: { userId },
         data: { currentWeightKg: parsedWeight },
       });
 
-      // Award points for consistency
-      await prisma.pointsTransaction.create({
-        data: {
-          userId,
-          points: 10,
-          category: 'HEALTH',
-          reason: `تسجيل وزن جديد: ${parsedWeight} كجم ⚖️`,
-        },
-      });
-
       return NextResponse.json({ success: true, log });
     }
 
-    // 2. Log workout
+    // 2. Delete weight log
+    if (action === 'delete_weight') {
+      const { id } = body;
+      await prisma.weightLog.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+
+    // 3. Log workout
     if (action === 'log_workout') {
       const { title, category, durationMins, exercises, burnedCalories, notes } = body;
 
@@ -204,20 +158,17 @@ export async function POST(request: Request) {
         },
       });
 
-      // Award fitness points
-      await prisma.pointsTransaction.create({
-        data: {
-          userId,
-          points: 20,
-          category: 'HEALTH',
-          reason: `إكمال تمرين: ${title} 💪`,
-        },
-      });
-
       return NextResponse.json({ success: true, workout });
     }
 
-    // 3. Log water
+    // 4. Delete workout log
+    if (action === 'delete_workout') {
+      const { id } = body;
+      await prisma.workoutLog.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+
+    // 5. Log water
     if (action === 'log_water') {
       const { amountMl } = body;
       const log = await prisma.waterLog.create({
@@ -230,7 +181,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, log });
     }
 
-    // 4. Toggle partner sharing consent
+    // 6. Toggle partner sharing consent
     if (action === 'toggle_share') {
       const { isSharedWithPartner } = body;
       const updated = await prisma.healthProfile.update({
@@ -241,14 +192,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, profile: updated });
     }
 
-    // 5. Add Medical Record with AI clinical explanation
+    // 7. Add Medical Record
     if (action === 'add_medical_record') {
       const { title, testType, testDate, isSharedWithPartner, testSummaryOrText } = body;
-
-      let aiSummary = 'فحص معتمد محفوظ بأمان في سجلك الطبي الخاص.';
-      if (testSummaryOrText) {
-        aiSummary = `ملاحظات المؤشرات المرجعية: ${testSummaryOrText} (تنبيه: هذا التفسير الإحصائي استرشادي فقط ولا يغني عن مراجعة واستشارة طبيبك المختص).`;
-      }
 
       const record = await prisma.medicalRecord.create({
         data: {
@@ -256,12 +202,36 @@ export async function POST(request: Request) {
           title,
           testType: testType || 'BLOOD_TEST',
           testDate: testDate ? new Date(testDate) : new Date(),
-          aiSummary,
+          aiSummary: testSummaryOrText || 'تم حفظ الفحص الطبي بنجاح في ملفك الصحي الخاص.',
           isSharedWithPartner: !!isSharedWithPartner,
         },
       });
 
       return NextResponse.json({ success: true, record });
+    }
+
+    // 8. Delete medical record
+    if (action === 'delete_medical') {
+      const { id } = body;
+      await prisma.medicalRecord.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+
+    // 9. Edit health target profile
+    if (action === 'edit_profile') {
+      const { heightCm, currentWeightKg, targetWeightKg, dailyWaterTargetMl, dailyCalorieTarget } = body;
+      const updated = await prisma.healthProfile.update({
+        where: { userId },
+        data: {
+          heightCm: heightCm ? parseFloat(heightCm) : undefined,
+          currentWeightKg: currentWeightKg ? parseFloat(currentWeightKg) : undefined,
+          targetWeightKg: targetWeightKg ? parseFloat(targetWeightKg) : undefined,
+          dailyWaterTargetMl: dailyWaterTargetMl ? parseInt(dailyWaterTargetMl) : undefined,
+          dailyCalorieTarget: dailyCalorieTarget ? parseInt(dailyCalorieTarget) : undefined,
+        },
+      });
+
+      return NextResponse.json({ success: true, profile: updated });
     }
 
     return NextResponse.json({ success: false, message: 'إجراء غير معروف' }, { status: 400 });

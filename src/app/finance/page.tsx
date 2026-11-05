@@ -18,7 +18,9 @@ import {
   X,
   CreditCard,
   Banknote,
-  Smartphone
+  Smartphone,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -42,42 +44,10 @@ const CATEGORY_NAMES: Record<string, { label: string; color: string }> = {
 
 const DEFAULT_FINANCE_DATA = {
   budget: 16000,
-  totalSpent: 1870,
-  remaining: 14130,
-  categoryTotals: {
-    FOOD: 850,
-    UTILITIES: 420,
-    HEALTH_GYM: 600,
-  },
-  expenses: [
-    {
-      id: 'e1',
-      title: 'مشتريات كارفور الأسبوعية (خضار وألبان)',
-      amount: 850,
-      category: 'FOOD',
-      paidBy: { displayName: 'فادي' },
-      expenseDate: new Date().toISOString(),
-      paymentMethod: 'CARD',
-    },
-    {
-      id: 'e2',
-      title: 'اشتراك الجيم الشهري - فادي',
-      amount: 600,
-      category: 'HEALTH_GYM',
-      paidBy: { displayName: 'فادي' },
-      expenseDate: new Date().toISOString(),
-      paymentMethod: 'CARD',
-    },
-    {
-      id: 'e3',
-      title: 'فاتورة الكهرباء والغاز الطبيعي',
-      amount: 420,
-      category: 'UTILITIES',
-      paidBy: { displayName: 'فادي' },
-      expenseDate: new Date().toISOString(),
-      paymentMethod: 'INSTAPAY',
-    },
-  ],
+  totalSpent: 0,
+  remaining: 16000,
+  categoryTotals: {},
+  expenses: [],
   invoices: [],
 };
 
@@ -106,6 +76,74 @@ export default function FinancePage() {
 
   // Edit Budget state
   const [newBudgetTarget, setNewBudgetTarget] = useState('');
+
+  // Edit Expense state
+  const [editingExpense, setEditingExpense] = useState<any | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editCategory, setEditCategory] = useState('FOOD');
+  const [editPaymentMethod, setEditPaymentMethod] = useState('CARD');
+  const [editPaidByUserId, setEditPaidByUserId] = useState('fady');
+  const [editNotes, setEditNotes] = useState('');
+
+  const openEditExpense = (exp: any) => {
+    setEditingExpense(exp);
+    setEditTitle(exp.title);
+    setEditAmount(String(exp.amount));
+    setEditCategory(exp.category || 'FOOD');
+    setEditPaymentMethod(exp.paymentMethod || 'CARD');
+    setEditPaidByUserId(exp.paidByUserId || exp.paidBy?.id || 'fady');
+    setEditNotes(exp.notes || '');
+  };
+
+  const handleSaveEditExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense || !editTitle.trim() || !editAmount) return;
+
+    try {
+      const res = await fetch('/api/finance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit_expense',
+          id: editingExpense.id,
+          title: editTitle.trim(),
+          amount: editAmount,
+          category: editCategory,
+          paidByUserId: editPaidByUserId,
+          paymentMethod: editPaymentMethod,
+          notes: editNotes,
+        }),
+      });
+      const resJson = await res.json();
+      if (resJson.success) {
+        showNotification('تم تحديث المصروف بنجاح ✨');
+        setEditingExpense(null);
+        fetchFinance();
+      }
+    } catch {
+      alert('حدث خطأ أثناء تعديل المصروف');
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm('هل تريد حذف هذا المصروف؟')) return;
+
+    try {
+      await fetch('/api/finance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_expense',
+          id,
+        }),
+      });
+      showNotification('تم حذف المصروف بنجاح 🗑️');
+      fetchFinance();
+    } catch {
+      alert('حدث خطأ أثناء الحذف');
+    }
+  };
 
   const fetchFinance = async () => {
     try {
@@ -411,44 +449,73 @@ export default function FinancePage() {
         <h2 className="text-xs font-extrabold text-neutral-700 px-1">سجل المصروفات الأخير</h2>
 
         <div className="space-y-2">
-          {data.expenses.map((exp: any) => {
-            const cat = CATEGORY_NAMES[exp.category] || { label: 'أخرى', color: '#6b7280' };
+          {data.expenses.length === 0 ? (
+            <div className="p-8 text-center bg-white border border-neutral-200/80 rounded-2xl space-y-2">
+              <Wallet className="w-10 h-10 text-brand-500 mx-auto stroke-[1.5]" />
+              <h3 className="font-extrabold text-sm text-neutral-800">مفيش أي مصاريف مسجلة للشهر ده حتى الآن! 💰</h3>
+              <p className="text-xs text-neutral-400 max-w-xs mx-auto">
+                الميزانية كاملة ومتاحة بالكامل. تقدر تسجل أي مصروف يدوي من (+ تسجيل مصروف) أو تصوّر الفاتورة بكاميرا الموبايل 📸
+              </p>
+            </div>
+          ) : (
+            data.expenses.map((exp: any) => {
+              const cat = CATEGORY_NAMES[exp.category] || { label: 'أخرى', color: '#6b7280' };
 
-            return (
-              <div
-                key={exp.id}
-                className="p-3.5 bg-white border border-neutral-200/80 rounded-2xl flex items-center justify-between shadow-sm hover:border-neutral-300 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-sm"
-                    style={{ backgroundColor: cat.color }}
-                  >
-                    <ShoppingBag className="w-5 h-5" />
+              return (
+                <div
+                  key={exp.id}
+                  className="p-3.5 bg-white border border-neutral-200/80 rounded-2xl flex items-center justify-between shadow-sm hover:border-neutral-300 transition-all gap-2"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-sm"
+                      style={{ backgroundColor: cat.color }}
+                    >
+                      <ShoppingBag className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-extrabold text-sm text-neutral-800 truncate">{exp.title}</h3>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500 flex-wrap">
+                        <span>{cat.label}</span>
+                        <span>•</span>
+                        <span>{new Date(exp.expenseDate).toLocaleDateString('ar-EG')}</span>
+                        <span>•</span>
+                        <span className="font-bold text-neutral-700">دفع: {exp.paidBy?.displayName || 'البيت'}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-extrabold text-sm text-neutral-800">{exp.title}</h3>
-                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
-                      <span>{cat.label}</span>
-                      <span>•</span>
-                      <span>{new Date(exp.expenseDate).toLocaleDateString('ar-EG')}</span>
-                      <span>•</span>
-                      <span className="font-bold text-neutral-700">دفع: {exp.paidBy?.displayName || 'البيت'}</span>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-left">
+                      <span className="font-black text-sm text-rose-600">
+                        -{formatCurrency(exp.amount)}
+                      </span>
+                      <span className="block text-[10px] text-neutral-400 font-medium">
+                        {exp.paymentMethod === 'CARD' ? 'بطاقة بنكية' : exp.paymentMethod === 'INSTAPAY' ? 'إنستاباي' : 'نقداً'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={() => openEditExpense(exp)}
+                        className="p-1.5 text-neutral-400 hover:text-brand-600 hover:bg-neutral-100 rounded-lg transition-colors"
+                        title="تعديل المصروف"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteExpense(exp.id)}
+                        className="p-1.5 text-neutral-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                        title="حذف المصروف"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
-
-                <div className="text-left">
-                  <span className="font-black text-sm text-rose-600">
-                    -{formatCurrency(exp.amount)}
-                  </span>
-                  <span className="block text-[10px] text-neutral-400 font-medium">
-                    {exp.paymentMethod === 'CARD' ? 'بطاقة بنكية' : exp.paymentMethod === 'INSTAPAY' ? 'إنستاباي' : 'نقداً'}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -718,6 +785,137 @@ export default function FinancePage() {
                 إلغاء
               </button>
             </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL 4: EDIT EXPENSE */}
+      {editingExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <form
+            onSubmit={handleSaveEditExpense}
+            className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-extrabold text-sm text-neutral-800">تعديل المصروف ✏️</h3>
+              <button
+                type="button"
+                onClick={() => setEditingExpense(null)}
+                className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">البيان</label>
+              <input
+                type="text"
+                required
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">المبلغ (ج.م)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  required
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-bold text-center"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">التصنيف</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-bold"
+                >
+                  {Object.entries(CATEGORY_NAMES).map(([key, val]) => (
+                    <option key={key} value={key}>
+                      {val.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">طريقة الدفع</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'CARD', label: 'بطاقة 💳' },
+                  { id: 'INSTAPAY', label: 'إنستاباي 📱' },
+                  { id: 'CASH', label: 'كاش 💵' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setEditPaymentMethod(m.id)}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                      editPaymentMethod === m.id
+                        ? 'bg-rose-50 text-brand-700 border-brand-300'
+                        : 'bg-neutral-50 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">مين اللي دفع؟</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditPaidByUserId('fady')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    editPaidByUserId === 'fady'
+                      ? 'bg-rose-50 text-brand-700 border-brand-300'
+                      : 'bg-neutral-50 text-neutral-600 border-neutral-200'
+                  }`}
+                >
+                  👨🏻‍💻 فادي
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditPaidByUserId('rahma')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    editPaidByUserId === 'rahma'
+                      ? 'bg-rose-50 text-brand-700 border-brand-300'
+                      : 'bg-neutral-50 text-neutral-600 border-neutral-200'
+                  }`}
+                >
+                  👩🏻‍🍳 رحمة
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">ملاحظات (اختياري)</label>
+              <input
+                type="text"
+                placeholder="تفاصيل إضافية..."
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-brand-600/20 active:scale-95 transition-all"
+            >
+              حفظ التعديلات 💾
+            </button>
           </form>
         </div>
       )}

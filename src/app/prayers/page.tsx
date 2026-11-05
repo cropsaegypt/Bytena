@@ -15,34 +15,27 @@ import {
   BookOpen, 
   Sun,
   HeartHandshake,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 
 const DEFAULT_PRAYER_RECORD = {
-  id: 'p1',
-  fajr: true,
-  dhuhr: true,
+  fajr: false,
+  dhuhr: false,
   asr: false,
   maghrib: false,
   isha: false,
-  morningDhikr: true,
+  morningDhikr: false,
   eveningDhikr: false,
-  quranPages: 4,
-  encouragementNote: 'ما شاء الله التزام رائع بالفجر وحاضر الصلوات 🌟',
+  quranPages: 0,
+  encouragementNote: 'يوم مبارك بالصلاة وذكر الله وحفظ بيتنا 🌟',
 };
 
 const DEFAULT_REWARDS_DATA = {
-  balance: 120,
-  catalog: [
-    { id: 'rw1', title: 'خروجة عشاء رايقة على النيل', description: 'مطعم جميل وجلسة هادئة ومكافأة لأسبوع مليء بالإنجاز والتفاهم', pointsCost: 150, icon: '🌊', isActive: true },
-    { id: 'rw2', title: 'اختيار فيلم السهرة مع فشار ومشروب', description: 'صاحب المكافأة هو اللي يختار الفيلم بدون أي اعتراض!', pointsCost: 40, icon: '🎬', isActive: true },
-    { id: 'rw3', title: 'يوم راحة وإعفاء كامل من مهام البيت', description: 'الطرف الثاني يتولى شؤون البيت بالكامل لليوم', pointsCost: 120, icon: '🛋️', isActive: true },
-  ],
+  balance: 0,
+  catalog: [],
   redemptions: [],
-  pointsHistory: [
-    { id: 'ph1', points: 50, reason: 'بداية استخدام نظام بيتنا ❤️', createdAt: new Date().toISOString() },
-    { id: 'ph2', points: 15, reason: 'إنجاز مهمة مسح وترتيب الصالة ✨', createdAt: new Date().toISOString() },
-  ],
+  pointsHistory: [],
 };
 
 export default function PrayersAndRewardsPage() {
@@ -153,6 +146,29 @@ export default function PrayersAndRewardsPage() {
       }
     } catch (e) {
       alert('حدث خطأ');
+    }
+  };
+
+  // Delete Reward
+  const handleDeleteReward = async (rewardId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه المكافأة من الكتالوج؟')) return;
+    try {
+      setRewardsData((prev: any) => ({
+        ...prev,
+        catalog: prev.catalog.filter((r: any) => r.id !== rewardId),
+      }));
+      await fetch('/api/rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_reward',
+          rewardId,
+        }),
+      });
+      showNotification('تم حذف المكافأة بنجاح 🗑️');
+      loadData();
+    } catch (e) {
+      loadData();
     }
   };
 
@@ -383,58 +399,78 @@ export default function PrayersAndRewardsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-2.5">
-            {rewardsData.catalog.map((reward: any) => {
-              const canAfford = rewardsData.balance >= reward.pointsCost;
+            {rewardsData.catalog && rewardsData.catalog.length > 0 ? (
+              rewardsData.catalog.map((reward: any) => {
+                const canAfford = rewardsData.balance >= reward.pointsCost;
 
-              return (
-                <div
-                  key={reward.id}
-                  className="p-4 bg-white border border-neutral-200/80 rounded-3xl flex items-center justify-between shadow-sm hover:border-brand-200 transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-3xl shrink-0 p-1">{reward.icon}</span>
-                    <div>
-                      <h3 className="font-extrabold text-sm text-neutral-800">{reward.title}</h3>
-                      {reward.description && (
-                        <p className="text-[11px] text-neutral-500 mt-0.5 leading-snug">
-                          {reward.description}
-                        </p>
-                      )}
-                      <span className="inline-block mt-1.5 text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
-                        {reward.pointsCost} نقطة
-                      </span>
+                return (
+                  <div
+                    key={reward.id}
+                    className="p-4 bg-white border border-neutral-200/80 rounded-3xl flex items-center justify-between shadow-sm hover:border-brand-200 transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-3xl shrink-0 p-1">{reward.icon}</span>
+                      <div>
+                        <h3 className="font-extrabold text-sm text-neutral-800">{reward.title}</h3>
+                        {reward.description && (
+                          <p className="text-[11px] text-neutral-500 mt-0.5 leading-snug">
+                            {reward.description}
+                          </p>
+                        )}
+                        <span className="inline-block mt-1.5 text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+                          {reward.pointsCost} نقطة
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDeleteReward(reward.id)}
+                        className="p-2 text-neutral-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors"
+                        title="حذف المكافأة"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleRedeem(reward.id, reward.title)}
+                        disabled={!canAfford}
+                        className={`px-3 py-2 rounded-2xl text-xs font-extrabold transition-all active:scale-95 shrink-0 ${
+                          canAfford
+                            ? 'bg-brand-600 hover:bg-brand-700 text-white shadow-md shadow-brand-500/20'
+                            : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                        }`}
+                      >
+                        استرداد 🎁
+                      </button>
                     </div>
                   </div>
-
-                  <button
-                    onClick={() => handleRedeem(reward.id, reward.title)}
-                    disabled={!canAfford}
-                    className={`px-3 py-2 rounded-2xl text-xs font-extrabold transition-all active:scale-95 shrink-0 ${
-                      canAfford
-                        ? 'bg-brand-600 hover:bg-brand-700 text-white shadow-md shadow-brand-500/20'
-                        : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                    }`}
-                  >
-                    استرداد 🎁
-                  </button>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="text-center py-8 bg-neutral-50 rounded-2xl border border-dashed border-neutral-200">
+                <p className="text-xs font-bold text-neutral-500">لا توجد مكافآت مسجلة حالياً</p>
+                <p className="text-[11px] text-neutral-400 mt-1">اضغط على زر "+ إضافة مكافأة" لإضافة مكافأة جديدة لبيتنا 🎁</p>
+              </div>
+            )}
           </div>
 
           {/* Points Ledger / Recent History */}
           <div className="mt-4 pt-3 border-t border-neutral-200/80 space-y-2">
             <h3 className="text-xs font-extrabold text-neutral-700 px-1">سجل النقاط المكتسبة الأخير</h3>
             <div className="space-y-1.5">
-              {rewardsData.pointsHistory?.slice(0, 5).map((pt: any) => (
-                <div
-                  key={pt.id}
-                  className="p-2.5 bg-neutral-50 rounded-xl flex items-center justify-between text-xs"
-                >
-                  <span className="text-neutral-700 font-medium truncate max-w-[200px]">{pt.reason}</span>
-                  <span className="font-black text-emerald-600">+{pt.points} نقطة</span>
-                </div>
-              ))}
+              {rewardsData.pointsHistory && rewardsData.pointsHistory.length > 0 ? (
+                rewardsData.pointsHistory.slice(0, 5).map((pt: any) => (
+                  <div
+                    key={pt.id}
+                    className="p-2.5 bg-neutral-50 rounded-xl flex items-center justify-between text-xs"
+                  >
+                    <span className="text-neutral-700 font-medium truncate max-w-[200px]">{pt.reason}</span>
+                    <span className="font-black text-emerald-600">+{pt.points} نقطة</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-neutral-400 py-3 text-center">لا توجد نقاط مسجلة حتى الآن</p>
+              )}
             </div>
           </div>
 

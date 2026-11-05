@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { ensureDatabaseInitialized } from '@/lib/init-db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
+    await ensureDatabaseInitialized();
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || 'fady';
 
@@ -13,7 +15,6 @@ export async function GET(request: Request) {
       orderBy: { pointsCost: 'asc' },
     });
 
-    // Calculate user balance
     const earned = await prisma.pointsTransaction.aggregate({
       where: { userId },
       _sum: { points: true },
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     const balance = (earned._sum.points || 0) - (spent._sum.pointsSpent || 0);
 
     const redemptions = await prisma.rewardRedemption.findMany({
-      where: { householdId: 'baytna-main' } as any,
+      where: { userId },
       include: {
         reward: true,
         user: { select: { displayName: true } },
@@ -45,64 +46,61 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       balance: Math.max(0, balance),
-      catalog: catalog.length > 0 ? catalog : [
-        { id: 'rw1', title: 'خروجة عشاء رايقة على النيل', description: 'مطعم جميل وجلسة هادئة ومكافأة لأسبوع مليء بالإنجاز والتفاهم', pointsCost: 150, icon: '🌊', isActive: true },
-        { id: 'rw2', title: 'اختيار فيلم السهرة مع فشار ومشروب', description: 'صاحب المكافأة هو اللي يختار الفيلم بدون أي اعتراض!', pointsCost: 40, icon: '🎬', isActive: true },
-        { id: 'rw3', title: 'يوم راحة وإعفاء كامل من مهام البيت', description: 'الطرف الثاني يتولى شؤون البيت بالكامل لليوم', pointsCost: 120, icon: '🛋️', isActive: true },
-      ],
-      redemptions,
-      pointsHistory,
+      catalog: catalog || [],
+      redemptions: redemptions || [],
+      pointsHistory: pointsHistory || [],
     });
   } catch (err: any) {
     return NextResponse.json({
       success: true,
-      balance: 120,
-      catalog: [
-        { id: 'rw1', title: 'خروجة عشاء رايقة على النيل', description: 'مطعم جميل وجلسة هادئة ومكافأة لأسبوع مليء بالإنجاز والتفاهم', pointsCost: 150, icon: '🌊', isActive: true },
-        { id: 'rw2', title: 'اختيار فيلم السهرة مع فشار ومشروب', description: 'صاحب المكافأة هو اللي يختار الفيلم بدون أي اعتراض!', pointsCost: 40, icon: '🎬', isActive: true },
-        { id: 'rw3', title: 'يوم راحة وإعفاء كامل من مهام البيت', description: 'الطرف الثاني يتولى شؤون البيت بالكامل لليوم', pointsCost: 120, icon: '🛋️', isActive: true },
-      ],
+      balance: 0,
+      catalog: [],
       redemptions: [],
-      pointsHistory: [
-        { id: 'ph1', points: 50, reason: 'بداية استخدام نظام بيتنا ❤️', createdAt: new Date().toISOString() },
-        { id: 'ph2', points: 15, reason: 'إنجاز مهمة مسح وترتيب الصالة ✨', createdAt: new Date().toISOString() },
-      ],
+      pointsHistory: [],
     });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await ensureDatabaseInitialized();
     const body = await request.json();
-    const { action, userId } = body;
+    const { action } = body;
 
-    // 1. Redeem a reward
+    // 1. Add Reward
+    if (action === 'add_reward') {
+      const { title, pointsCost, icon, description, userId } = body;
+
+      const reward = await prisma.rewardCatalog.create({
+        data: {
+          householdId: 'baytna-main',
+          title,
+          pointsCost: pointsCost ? parseInt(pointsCost) : 50,
+          icon: icon || '🎁',
+          description: description || null,
+        },
+      });
+
+      return NextResponse.json({ success: true, reward });
+    }
+
+    // 2. Delete Reward
+    if (action === 'delete_reward') {
+      const { rewardId } = body;
+      await prisma.rewardCatalog.delete({ where: { id: rewardId } });
+      return NextResponse.json({ success: true });
+    }
+
+    // 3. Redeem Reward
     if (action === 'redeem') {
-      const { rewardId, notes } = body;
+      const { rewardId, userId } = body;
+
       const reward = await prisma.rewardCatalog.findUnique({
         where: { id: rewardId },
       });
 
       if (!reward) {
-        return NextResponse.json({ success: false, message: 'المكافأة غير متوفرة' }, { status: 404 });
-      }
-
-      // Check balance
-      const earned = await prisma.pointsTransaction.aggregate({
-        where: { userId },
-        _sum: { points: true },
-      });
-      const spent = await prisma.rewardRedemption.aggregate({
-        where: { userId },
-        _sum: { pointsSpent: true },
-      });
-      const balance = (earned._sum.points || 0) - (spent._sum.pointsSpent || 0);
-
-      if (balance < reward.pointsCost) {
-        return NextResponse.json({
-          success: false,
-          message: `عفواً، نقاطك الحالية (${balance}) لا تكفي لاسترداد هذه المكافأة (${reward.pointsCost} نقطة). شد حيلك وكمّل باقي الأهداف! 💪`,
-        }, { status: 400 });
+        return NextResponse.json({ success: false, message: 'المكافأة غير موجودة' }, { status: 404 });
       }
 
       const redemption = await prisma.rewardRedemption.create({
@@ -110,35 +108,14 @@ export async function POST(request: Request) {
           rewardId,
           userId,
           pointsSpent: reward.pointsCost,
-          status: 'REQUESTED',
-          notes: notes || null,
         },
-        include: { reward: true },
       });
 
       return NextResponse.json({
         success: true,
-        message: `مبروك يا بطل! تم استرداد المكافأة: "${reward.title}" بنجاح 🎉`,
+        message: `ألف مبروك! تم استبدال مكافأة "${reward.title}" بنجاح 🎉`,
         redemption,
-        newBalance: balance - reward.pointsCost,
       });
-    }
-
-    // 2. Add custom reward
-    if (action === 'add_reward') {
-      const { title, description, pointsCost, icon } = body;
-      const newReward = await prisma.rewardCatalog.create({
-        data: {
-          householdId: 'baytna-main',
-          title,
-          description: description || null,
-          pointsCost: pointsCost ? parseInt(pointsCost) : 50,
-          icon: icon || '🎁',
-          createdByUserId: userId,
-        },
-      });
-
-      return NextResponse.json({ success: true, reward: newReward });
     }
 
     return NextResponse.json({ success: false, message: 'إجراء غير معروف' }, { status: 400 });

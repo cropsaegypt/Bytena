@@ -21,43 +21,26 @@ import {
   Share2,
   Sparkles,
   Key,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 
 const DEFAULT_HEALTH_DATA = {
   profile: {
     heightCm: 182,
-    currentWeightKg: 85.5,
+    currentWeightKg: 85.0,
     targetWeightKg: 78.0,
     dailyCalorieTarget: 2350,
     dailyWaterTargetMl: 3200,
     macrosProteinG: 155,
     macrosCarbsG: 230,
     macrosFatG: 65,
-    isSharedWithPartner: false,
+    isSharedWithPartner: true,
     user: { displayName: 'فادي', avatar: '👨🏻‍💻' },
   },
-  weightLogs: [
-    { id: 'w1', weightKg: 85.5, loggedAt: new Date().toISOString(), notes: 'وزن الصباح على الريق' },
-    { id: 'w2', weightKg: 86.2, loggedAt: new Date(Date.now() - 86400000 * 3).toISOString(), notes: 'تحسن في قياسات الجسم' },
-    { id: 'w3', weightKg: 87.0, loggedAt: new Date(Date.now() - 86400000 * 7).toISOString(), notes: 'بداية الالتزام' },
-  ],
-  workoutLogs: [
-    {
-      id: 'wk1',
-      title: 'تمرين بنش وترايسبس بالجيم 💪',
-      category: 'GYM',
-      durationMins: 55,
-      burnedCalories: 420,
-      date: new Date().toISOString(),
-      exercisesJson: JSON.stringify([
-        { name: 'بنش برس', sets: 4, reps: 12, weight: 65 },
-        { name: 'تجميع دمبلز مائل', sets: 3, reps: 12, weight: 20 },
-      ]),
-      notes: 'أداء عالي وطاقة ممتازة',
-    },
-  ],
-  totalWaterToday: 1500,
+  weightLogs: [],
+  workoutLogs: [],
+  totalWaterToday: 0,
   medicalRecords: [],
 };
 
@@ -160,6 +143,45 @@ export default function HealthPage() {
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleDeleteWeight = async (id: string) => {
+    if (!confirm('هل تريد حذف قياس الوزن هذا؟')) return;
+    try {
+      await fetch('/api/health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_weight', id, userId: currentUser.id }),
+      });
+      showNotification('تم حذف قياس الوزن بنجاح 🗑️');
+      fetchHealthData();
+    } catch {}
+  };
+
+  const handleDeleteWorkout = async (id: string) => {
+    if (!confirm('هل تريد حذف هذا التمرين؟')) return;
+    try {
+      await fetch('/api/health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_workout', id, userId: currentUser.id }),
+      });
+      showNotification('تم حذف التمرين بنجاح 🗑️');
+      fetchHealthData();
+    } catch {}
+  };
+
+  const handleDeleteMedical = async (id: string) => {
+    if (!confirm('هل تريد حذف هذا التقرير الطبي؟')) return;
+    try {
+      await fetch('/api/health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_medical', id, userId: currentUser.id }),
+      });
+      showNotification('تم حذف التقرير الطبي 🗑️');
+      fetchHealthData();
+    } catch {}
   };
 
   // Water Drink Action
@@ -511,20 +533,33 @@ export default function HealthPage() {
         </div>
 
         <div className="space-y-2">
-          {weightLogs.slice(0, 4).map((log: any) => (
-            <div
-              key={log.id}
-              className="p-2.5 bg-neutral-50 border border-neutral-100 rounded-xl flex items-center justify-between text-xs"
-            >
-              <div>
-                <span className="font-black text-neutral-800">{log.weightKg} كجم</span>
-                {log.notes && <span className="text-[10px] text-neutral-500 mr-2">({log.notes})</span>}
+          {weightLogs.length === 0 ? (
+            <p className="text-xs text-neutral-400 py-3 text-center">لا توجد قياسات وزن مسجلة بعد، اضغط على (+ تسجيل قياس جديد)</p>
+          ) : (
+            weightLogs.slice(0, 5).map((log: any) => (
+              <div
+                key={log.id}
+                className="p-2.5 bg-neutral-50 border border-neutral-100 rounded-xl flex items-center justify-between text-xs"
+              >
+                <div>
+                  <span className="font-black text-neutral-800">{log.weightKg} كجم</span>
+                  {log.notes && <span className="text-[10px] text-neutral-500 mr-2">({log.notes})</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-neutral-400 font-medium">
+                    {new Date(log.loggedAt).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <button
+                    onClick={() => handleDeleteWeight(log.id)}
+                    className="p-1 text-neutral-400 hover:text-rose-500 rounded transition-colors"
+                    title="حذف قياس الوزن"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <span className="text-[10px] text-neutral-400 font-medium">
-                {new Date(log.loggedAt).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -544,24 +579,37 @@ export default function HealthPage() {
         </div>
 
         <div className="space-y-2">
-          {workoutLogs.slice(0, 3).map((w: any) => (
-            <div
-              key={w.id}
-              className="p-3 bg-neutral-50 border border-neutral-100 rounded-2xl flex items-center justify-between"
-            >
-              <div>
-                <h4 className="font-extrabold text-xs text-neutral-800">{w.title}</h4>
-                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
-                  <span>{w.durationMins} دقيقة</span>
-                  <span>•</span>
-                  <span>🔥 {w.burnedCalories} سعرة محروقة</span>
+          {workoutLogs.length === 0 ? (
+            <p className="text-xs text-neutral-400 py-3 text-center">لا توجد تمارين مسجلة بعد، اضغط على (+ تسجيل تمرين)</p>
+          ) : (
+            workoutLogs.slice(0, 5).map((w: any) => (
+              <div
+                key={w.id}
+                className="p-3 bg-neutral-50 border border-neutral-100 rounded-2xl flex items-center justify-between"
+              >
+                <div>
+                  <h4 className="font-extrabold text-xs text-neutral-800">{w.title}</h4>
+                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
+                    <span>{w.durationMins} دقيقة</span>
+                    <span>•</span>
+                    <span>🔥 {w.burnedCalories} سعرة محروقة</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
+                    +20 نقطة
+                  </span>
+                  <button
+                    onClick={() => handleDeleteWorkout(w.id)}
+                    className="p-1 text-neutral-400 hover:text-rose-500 rounded transition-colors"
+                    title="حذف التمرين"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
-              <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
-                +20 نقطة
-              </span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -591,9 +639,18 @@ export default function HealthPage() {
               >
                 <div className="flex items-center justify-between">
                   <h4 className="font-extrabold text-xs text-neutral-800">{rec.title}</h4>
-                  <span className="text-[10px] text-neutral-400 font-medium">
-                    {new Date(rec.testDate).toLocaleDateString('ar-EG')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-neutral-400 font-medium">
+                      {new Date(rec.testDate).toLocaleDateString('ar-EG')}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteMedical(rec.id)}
+                      className="p-1 text-neutral-400 hover:text-rose-500 rounded transition-colors"
+                      title="حذف التقرير"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 {rec.aiSummary && (
                   <p className="text-[11px] text-neutral-600 leading-relaxed bg-white p-2 rounded-xl border border-neutral-200/60">

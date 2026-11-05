@@ -33,6 +33,8 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    const clientSavedPassword = typeof window !== 'undefined' ? localStorage.getItem('baytna_pwd_' + selectedUser) : null;
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -40,6 +42,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           username: selectedUser,
           password: password.trim(),
+          clientSavedPassword,
         }),
       });
 
@@ -94,6 +97,9 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (data.success) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('baytna_pwd_' + selectedUser, newPassword.trim());
+        }
         setStep('welcome');
       } else {
         setError(data.message || 'فشل تحديث كلمة المرور');
@@ -239,6 +245,9 @@ export default function LoginPage() {
               <p className="text-xs text-neutral-500 leading-relaxed">
                 أهلاً بيك يا <strong className="text-neutral-800 font-bold">{partnerName} {partnerAvatar}</strong>! عشان نضمن أقصى خصوصية، حدد كلمة مرورك السرية والجديدة التي لا يعرفها سواكما.
               </p>
+              <div className="p-2.5 bg-amber-50 rounded-2xl border border-amber-200/80 text-[11px] text-amber-800 font-bold text-center">
+                ⚠️ بمجرد الحفظ، سيتم إيقاف كلمة المرور الافتراضية (dalida) فوراً ولن يُسمح بفتح الحساب إلا بالكلمة الجديدة.
+              </div>
             </div>
 
             <form onSubmit={handleChangePassword} className="space-y-3.5">

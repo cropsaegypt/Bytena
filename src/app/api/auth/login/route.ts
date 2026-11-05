@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     await ensureDatabaseInitialized();
 
-    const { username, password } = await request.json();
+    const { username, password, clientSavedPassword } = await request.json();
 
     if (!username || !password) {
       return NextResponse.json({ success: false, message: 'يرجى إدخال اسم المستخدم وكلمة المرور' }, { status: 400 });
@@ -25,29 +25,49 @@ export async function POST(request: Request) {
       where: { id: userId },
     });
 
-    // Accept either database stored password, 'dalida', or previous defaults
-    const inputPassword = password.trim();
-    const validPasswords = [
-      user?.passwordHash,
-      'dalida',
-      'Dalida',
-      'DALIDA',
-      userId === 'fady' ? 'fady2026' : 'rahma2026',
-    ].filter(Boolean);
-
-    const isMatch = validPasswords.some(
-      (p) => p?.toLowerCase() === inputPassword.toLowerCase()
-    );
-
-    if (!isMatch) {
-      return NextResponse.json({ success: false, message: 'كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى' }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'المستخدم غير مسجل' }, { status: 404 });
     }
 
-    const isDefaultPassword = 
-      inputPassword.toLowerCase() === 'dalida' || 
-      user?.passwordHash?.toLowerCase() === 'dalida' ||
-      inputPassword === 'fady2026' ||
-      inputPassword === 'rahma2026';
+    // If client had previously saved a new password and server container was reset:
+    if (clientSavedPassword && clientSavedPassword !== 'dalida' && user.passwordHash === 'dalida') {
+      try {
+        user = await prisma.user.update({
+          where: { id: userId },
+          data: { passwordHash: clientSavedPassword.trim() },
+        });
+      } catch {}
+    }
+
+    const inputPassword = password.trim();
+    const currentStoredPassword = user.passwordHash || 'dalida';
+    const isInitialDefault = currentStoredPassword.toLowerCase() === 'dalida';
+
+    let isMatch = false;
+    if (isInitialDefault) {
+      // User has not changed their initial password yet -> accepts 'dalida'
+      isMatch = inputPassword.toLowerCase() === 'dalida';
+    } else {
+      // User has already set a custom password -> ONLY accept the new custom password!
+      // 'dalida' is strictly rejected once changed!
+      isMatch = inputPassword === currentStoredPassword;
+    }
+
+    if (!isMatch) {
+      if (!isInitialDefault && inputPassword.toLowerCase() === 'dalida') {
+        return NextResponse.json({
+          success: false,
+          message: 'تم تغيير كلمة المرور سابقاً إلى كلمة جديدة خاصة بك! لم يعد مسموحاً بالدخول بكلمة dalida القديمة. أدخل كلمة مرورك الجديدة.',
+        }, { status: 401 });
+      }
+
+      return NextResponse.json({
+        success: false,
+        message: 'كلمة المرور غير صحيحة، يرجى التأكد وإعادة المحاولة',
+      }, { status: 401 });
+    }
+
+    const isDefaultPassword = isInitialDefault;
 
     // Create session token
     const token = createSignedToken({ userId, loggedInAt: Date.now() });
@@ -56,9 +76,9 @@ export async function POST(request: Request) {
       success: true,
       isDefaultPassword,
       user: {
-        id: user?.id || userId,
-        displayName: user?.displayName || (userId === 'fady' ? 'فادي' : 'رحمة'),
-        avatar: user?.avatar || (userId === 'fady' ? '👨🏻‍💻' : '👩🏻‍🍳'),
+        id: user.id,
+        displayName: user.displayName || (userId === 'fady' ? 'فادي' : 'رحمة'),
+        avatar: user.avatar || (userId === 'fady' ? '👨🏻‍💻' : '👩🏻‍🍳'),
       },
     });
 

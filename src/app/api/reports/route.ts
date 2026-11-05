@@ -66,15 +66,15 @@ export async function GET() {
       success: true,
       report: {
         period: 'خلال الـ 7 أيام الماضية',
-        totalWeeklySpent: 1870,
-        fadyWorkouts: 4,
-        rahmaWorkouts: 3,
-        completedTasks: 8,
-        mealsCount: 14,
-        fadyPoints: 65,
-        rahmaPoints: 55,
+        totalWeeklySpent: 0,
+        fadyWorkouts: 0,
+        rahmaWorkouts: 0,
+        completedTasks: 0,
+        mealsCount: 0,
+        fadyPoints: 0,
+        rahmaPoints: 0,
         omMahmoudVerdict:
-          'اللهم بارك يا ولاد، أسبوعكم كان مليان بركة وهدوء وتفاهم! المطبخ كان عامر، والمصاريف مدروسة، وتمرين فادي والتزام رحمة مشرف جداً. استمروا بنفس الروح الجميلة دي واستمتعوا بالويك إند ❤️',
+          'أسبوع جديد وبداية موفقة في بيتنا المبارك! خطوة بخطوة هتسجلوا يومياتكم وإنجازاتكم بكل حب وبركة ❤️',
       },
     });
   }

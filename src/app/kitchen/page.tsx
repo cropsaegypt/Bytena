@@ -16,103 +16,17 @@ import {
   ChefHat, 
   CheckCircle2, 
   Filter,
-  X
+  X,
+  Edit3,
+  Trash2
 } from 'lucide-react';
-
-const DEFAULT_KITCHEN_RECIPES = [
-  {
-    id: 'r1',
-    title: 'مكرونة بالبشاميل بلدي أصلية',
-    category: 'LUNCH',
-    servings: 4,
-    prepTimeMins: 50,
-    calories: 580,
-    proteinG: 32,
-    carbsG: 65,
-    fatG: 22,
-    estimatedCost: 140,
-    isFavoriteFady: true,
-    isFavoriteRahma: true,
-    ingredientsJson: JSON.stringify([
-      { name: 'مكرونة قلم', amount: 500, unit: 'جرام' },
-      { name: 'لحم مفروم', amount: 350, unit: 'جرام' },
-      { name: 'لبن حليب', amount: 1, unit: 'لتر' }
-    ]),
-    instructionsJson: JSON.stringify(['سلق المكرونة 8 دقائق', 'تعصيج اللحم مع البصل والبهارات', 'تحضير البشاميل بالحليب', 'رص الصينية والخبز بالفرن 30 دقيقة'])
-  },
-  {
-    id: 'r2',
-    title: 'صينية فراخ مشوية بالبطاطس والليمون',
-    category: 'LUNCH',
-    servings: 3,
-    prepTimeMins: 45,
-    calories: 460,
-    proteinG: 42,
-    carbsG: 35,
-    fatG: 14,
-    estimatedCost: 130,
-    isFavoriteFady: true,
-    isFavoriteRahma: true,
-    ingredientsJson: JSON.stringify([
-      { name: 'دجاج مقطع', amount: 1, unit: 'كجم' },
-      { name: 'بطاطس', amount: 500, unit: 'جرام' }
-    ]),
-    instructionsJson: JSON.stringify(['تتبيل الدجاج بالليمون والبهارات', 'رص البطاطس بالصينية', 'الخبز بالفرن حتى الاحمرار'])
-  },
-  {
-    id: 'r3',
-    title: 'شوفان بالحليب والموز والعسل 🍳',
-    category: 'BREAKFAST',
-    servings: 2,
-    prepTimeMins: 10,
-    calories: 380,
-    proteinG: 18,
-    carbsG: 55,
-    fatG: 11,
-    estimatedCost: 35,
-    isFavoriteFady: true,
-    isFavoriteRahma: true,
-    ingredientsJson: JSON.stringify([
-      { name: 'شوفان حبة كاملة', amount: 100, unit: 'جرام' },
-      { name: 'حليب', amount: 400, unit: 'مل' }
-    ]),
-    instructionsJson: JSON.stringify(['غلي الحليب وإضافة الشوفان 5 دقائق', 'تقديمه في أطباق مع الموز والعسل'])
-  }
-];
-
-const DEFAULT_MEAL_PLANS = [
-  {
-    id: 'p1',
-    date: new Date().toISOString(),
-    mealType: 'BREAKFAST',
-    customName: 'شوفان بالحليب والموز والعسل 🍳',
-    notes: 'فطار صحي وسريع قبل بداية اليوم',
-    recipe: DEFAULT_KITCHEN_RECIPES[2],
-  },
-  {
-    id: 'p2',
-    date: new Date().toISOString(),
-    mealType: 'LUNCH',
-    customName: 'مكرونة بالبشاميل بلدي أصلية',
-    notes: 'فادي طلبها ورحمة عملتها بكل حب ❤️',
-    recipe: DEFAULT_KITCHEN_RECIPES[0],
-  },
-  {
-    id: 'p3',
-    date: new Date().toISOString(),
-    mealType: 'DINNER',
-    customName: 'سلطة جبنة قريش بزيت الزيتون والزعتر وخيار 🥗',
-    notes: 'عشاء خفيف ومريح',
-    recipe: null,
-  }
-];
 
 export default function KitchenPage() {
   const { currentUser } = useUser();
   const [loading, setLoading] = useState(false);
-  const [recipes, setRecipes] = useState<any[]>(DEFAULT_KITCHEN_RECIPES);
-  const [mealPlans, setMealPlans] = useState<any[]>(DEFAULT_MEAL_PLANS);
-  const [fadyWishlist, setFadyWishlist] = useState<any[]>([DEFAULT_KITCHEN_RECIPES[0], DEFAULT_KITCHEN_RECIPES[1]]);
+  const [recipes, setRecipes] = useState<any[]>([]);
+  const [mealPlans, setMealPlans] = useState<any[]>([]);
+  const [fadyWishlist, setFadyWishlist] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'plan' | 'recipes' | 'wishlist'>('plan');
   
   // Modals
@@ -121,6 +35,16 @@ export default function KitchenPage() {
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [scheduleTargetRecipe, setScheduleTargetRecipe] = useState<any | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Edit Recipe State
+  const [editingRecipe, setEditingRecipe] = useState<any | null>(null);
+  const [editRecipeTitle, setEditRecipeTitle] = useState('');
+  const [editRecipeCategory, setEditRecipeCategory] = useState('LUNCH');
+  const [editRecipeServings, setEditRecipeServings] = useState('2');
+  const [editRecipePrepTime, setEditRecipePrepTime] = useState('30');
+  const [editRecipeCost, setEditRecipeCost] = useState('60');
+  const [editRecipeIngredients, setEditRecipeIngredients] = useState('');
+  const [editRecipeInstructions, setEditRecipeInstructions] = useState('');
 
   // Add Recipe Form State
   const [newTitle, setNewTitle] = useState('');
@@ -162,6 +86,114 @@ export default function KitchenPage() {
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  const openEditRecipe = (r: any) => {
+    setEditingRecipe(r);
+    setEditRecipeTitle(r.title);
+    setEditRecipeCategory(r.category || 'LUNCH');
+    setEditRecipeServings(String(r.servings || 2));
+    setEditRecipePrepTime(String(r.prepTimeMins || 30));
+    setEditRecipeCost(String(r.estimatedCost || 60));
+
+    try {
+      const ings = JSON.parse(r.ingredientsJson || '[]');
+      const lines = ings
+        .map((i: any) => (i.amount ? `${i.name} - ${i.amount} ${i.unit || ''}` : i.name))
+        .join('\n');
+      setEditRecipeIngredients(lines);
+    } catch {
+      setEditRecipeIngredients('');
+    }
+
+    try {
+      const insts = JSON.parse(r.instructionsJson || '[]');
+      setEditRecipeInstructions(insts.join('\n'));
+    } catch {
+      setEditRecipeInstructions('');
+    }
+  };
+
+  const handleSaveEditRecipe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecipe || !editRecipeTitle.trim()) return;
+
+    const ingredients = editRecipeIngredients
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+      .map((line) => {
+        const match = line.match(/^(.+?)\s*(?:-|–|\:|\()\s*(\d+(?:\.\d+)?)\s*([^\)]*)\)?$/);
+        if (match) {
+          return {
+            name: match[1].trim(),
+            amount: parseFloat(match[2]),
+            unit: match[3].replace(/\)$/, '').trim() || 'قطعة',
+          };
+        }
+        return { name: line, amount: 1, unit: 'حسب الرغبة' };
+      });
+
+    const instructions = editRecipeInstructions
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    try {
+      const res = await fetch('/api/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit_recipe',
+          id: editingRecipe.id,
+          title: editRecipeTitle.trim(),
+          category: editRecipeCategory,
+          servings: editRecipeServings,
+          prepTimeMins: editRecipePrepTime,
+          estimatedCost: editRecipeCost,
+          ingredients,
+          instructions,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification('تم تحديث الوصفة بنجاح ✨');
+        setEditingRecipe(null);
+        loadData();
+      }
+    } catch {
+      alert('حدث خطأ أثناء حفظ التعديلات');
+    }
+  };
+
+  const handleDeleteRecipe = async (recipeId: string) => {
+    if (!confirm('هل تريد حذف هذه الوصفة من كتاب المطبخ؟')) return;
+    try {
+      await fetch('/api/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_recipe', id: recipeId }),
+      });
+      showNotification('تم حذف الوصفة بنجاح 🗑️');
+      loadData();
+    } catch {
+      alert('حدث خطأ');
+    }
+  };
+
+  const handleDeleteMealPlan = async (planId: string) => {
+    if (!confirm('هل تريد إلغاء هذه الوجبة من جدول الأسبوع؟')) return;
+    try {
+      await fetch('/api/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_meal_plan', id: planId }),
+      });
+      showNotification('تم حذف الوجبة من الجدول 🗑️');
+      loadData();
+    } catch {
+      alert('حدث خطأ');
+    }
   };
 
   // Generate shopping list automatically from meal plans
@@ -432,80 +464,99 @@ export default function KitchenPage() {
 
           {/* Planned Meals List */}
           <div className="space-y-2.5">
-            {mealPlans.map((plan) => {
-              const dateObj = new Date(plan.date);
-              const isToday = dateObj.toDateString() === new Date().toDateString();
+            {mealPlans.length === 0 ? (
+              <div className="p-8 text-center bg-white border border-neutral-200/80 rounded-2xl space-y-2">
+                <Calendar className="w-10 h-10 text-brand-500 mx-auto stroke-[1.5]" />
+                <h3 className="font-extrabold text-sm text-neutral-800">مفيش وجبات مجدولة للأيام دي 📅</h3>
+                <p className="text-xs text-neutral-400 max-w-xs mx-auto">
+                  تقدر تختار أي أكلة من كتاب الوصفات وتحدد معادها (فطار، غداء، أو عشاء) ليومك ولأسبوعك.
+                </p>
+              </div>
+            ) : (
+              mealPlans.map((plan) => {
+                const dateObj = new Date(plan.date);
+                const isToday = dateObj.toDateString() === new Date().toDateString();
 
-              return (
-                <div
-                  key={plan.id}
-                  className={`p-3.5 rounded-2xl border transition-all ${
-                    isToday
-                      ? 'bg-rose-50/50 border-rose-200'
-                      : 'bg-white border-neutral-200/80 hover:border-neutral-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                        isToday ? 'bg-brand-600 text-white' : 'bg-neutral-100 text-neutral-600'
-                      }`}>
-                        {isToday ? 'اليوم' : dateObj.toLocaleDateString('ar-EG', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </span>
-                      <span className="text-xs font-bold text-neutral-500">
-                        {plan.mealType === 'BREAKFAST' ? 'إفطار' : plan.mealType === 'LUNCH' ? 'غداء' : 'عشاء'}
-                      </span>
-                    </div>
+                return (
+                  <div
+                    key={plan.id}
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isToday
+                        ? 'bg-rose-50/50 border-rose-200'
+                        : 'bg-white border-neutral-200/80 hover:border-neutral-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                          isToday ? 'bg-brand-600 text-white' : 'bg-neutral-100 text-neutral-600'
+                        }`}>
+                          {isToday ? 'اليوم' : dateObj.toLocaleDateString('ar-EG', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </span>
+                        <span className="text-xs font-bold text-neutral-500">
+                          {plan.mealType === 'BREAKFAST' ? 'إفطار' : plan.mealType === 'LUNCH' ? 'غداء' : 'عشاء'}
+                        </span>
+                      </div>
 
-                    {plan.recipe && (
-                      <span className="text-[10px] font-bold text-neutral-400">
-                        تكلفة تقديرية: {plan.recipe.estimatedCost} ج.م
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-extrabold text-sm text-neutral-800">
-                        {plan.recipe?.title || plan.customName}
-                      </h3>
-                      {plan.notes && (
-                        <p className="text-xs text-neutral-500 mt-1">{plan.notes}</p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {isToday && (
+                      <div className="flex items-center gap-2">
+                        {plan.recipe && (
+                          <span className="text-[10px] font-bold text-neutral-400">
+                            تكلفة تقديرية: {plan.recipe.estimatedCost} ج.م
+                          </span>
+                        )}
                         <button
-                          onClick={() => {
-                            triggerLoveNotification({
-                              type: 'COOKING_STARTED',
-                              fromUserId: 'rahma',
-                              toUserId: 'fady',
-                              title: 'غداء بحب من إيد رحمة 👩🏻‍🍳❤️',
-                              body: `رحمة بدأت تجهزلك ${plan.recipe?.title || plan.customName || 'الغداء'} بحب.. متتأخرش عليها يا فادي 💕`,
-                            });
-                          }}
-                          className="text-[11px] bg-rose-50 hover:bg-rose-100 text-brand-700 px-2.5 py-1 rounded-xl font-black border border-rose-200/80 shadow-sm transition-transform active:scale-95 flex items-center gap-1"
-                          title="إرسال إشعار لفادي إنك بدأتي تطبخي"
+                          onClick={() => handleDeleteMealPlan(plan.id)}
+                          className="p-1 text-neutral-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
+                          title="إلغاء الوجبة من الجدول"
                         >
-                          <ChefHat className="w-3.5 h-3.5 text-brand-600" />
-                          <span>بدأت أطبخ يا فادي ❤️</span>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                      {plan.recipe && (
-                        <button
-                          onClick={() => setSelectedRecipe(plan.recipe)}
-                          className="text-xs text-brand-600 font-bold hover:underline"
-                        >
-                          عرض الوصفة
-                        </button>
-                      )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-extrabold text-sm text-neutral-800">
+                          {plan.recipe?.title || plan.customName}
+                        </h3>
+                        {plan.notes && (
+                          <p className="text-xs text-neutral-500 mt-1">{plan.notes}</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {isToday && (
+                          <button
+                            onClick={() => {
+                              triggerLoveNotification({
+                                type: 'COOKING_STARTED',
+                                fromUserId: 'rahma',
+                                toUserId: 'fady',
+                                title: 'غداء بحب من إيد رحمة 👩🏻‍🍳❤️',
+                                body: `رحمة بدأت تجهزلك ${plan.recipe?.title || plan.customName || 'الغداء'} بحب.. متتأخرش عليها يا فادي 💕`,
+                              });
+                            }}
+                            className="text-[11px] bg-rose-50 hover:bg-rose-100 text-brand-700 px-2.5 py-1 rounded-xl font-black border border-rose-200/80 shadow-sm transition-transform active:scale-95 flex items-center gap-1"
+                            title="إرسال إشعار لفادي إنك بدأتي تطبخي"
+                          >
+                            <ChefHat className="w-3.5 h-3.5 text-brand-600" />
+                            <span>بدأت أطبخ يا فادي ❤️</span>
+                          </button>
+                        )}
+                        {plan.recipe && (
+                          <button
+                            onClick={() => setSelectedRecipe(plan.recipe)}
+                            className="text-xs text-brand-600 font-bold hover:underline"
+                          >
+                            عرض الوصفة
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -513,77 +564,103 @@ export default function KitchenPage() {
       {/* TAB 2: RECIPES */}
       {activeTab === 'recipes' && (
         <div className="grid grid-cols-1 gap-3">
-          {recipes.map((recipe) => (
-            <div
-              key={recipe.id}
-              className="bg-white border border-neutral-200/80 rounded-2xl p-4 shadow-sm hover:border-brand-200 transition-all space-y-3"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-bold bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-md">
-                    {recipe.category === 'LUNCH' ? 'غداء' : recipe.category === 'BREAKFAST' ? 'إفطار' : 'عشاء'}
-                  </span>
-                  <h3 className="font-extrabold text-base text-neutral-800 mt-1">
-                    {recipe.title}
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  {recipe.isFavoriteFady && (
-                    <span className="text-xs bg-rose-50 text-brand-700 px-2 py-1 rounded-xl font-bold flex items-center gap-1">
-                      <Heart className="w-3 h-3 fill-rose-500 text-rose-500" /> فادي
-                    </span>
-                  )}
-                  {recipe.isFavoriteRahma && (
-                    <span className="text-xs bg-rose-50 text-brand-700 px-2 py-1 rounded-xl font-bold flex items-center gap-1">
-                      <Heart className="w-3 h-3 fill-rose-500 text-rose-500" /> رحمة
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Nutritional & Prep Stats */}
-              <div className="grid grid-cols-4 gap-2 py-2 px-3 bg-neutral-50 rounded-xl text-center text-xs">
-                <div>
-                  <span className="block text-[10px] text-neutral-400">الوقت</span>
-                  <span className="font-bold text-neutral-700">{recipe.prepTimeMins} د</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-neutral-400">السعرات</span>
-                  <span className="font-bold text-neutral-700">{recipe.calories}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-neutral-400">البروتين</span>
-                  <span className="font-bold text-neutral-700">{recipe.proteinG} جم</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-neutral-400">التكلفة</span>
-                  <span className="font-bold text-neutral-700">{recipe.estimatedCost} ج.م</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  onClick={() => setSelectedRecipe(recipe)}
-                  className="text-xs text-brand-600 font-bold hover:underline"
-                >
-                  المكونات والتحضير
-                </button>
-
-                <button
-                  onClick={() => {
-                    setScheduleTargetRecipe(recipe);
-                    setIsScheduleOpen(true);
-                  }}
-                  className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center gap-1 transition-all"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>جدولة في الأسبوع</span>
-                </button>
-              </div>
+          {recipes.length === 0 ? (
+            <div className="p-8 text-center bg-white border border-neutral-200/80 rounded-2xl space-y-2">
+              <ChefHat className="w-10 h-10 text-brand-500 mx-auto stroke-[1.5]" />
+              <h3 className="font-extrabold text-sm text-neutral-800">كتاب المطبخ لسه فاضي 🍲</h3>
+              <p className="text-xs text-neutral-400 max-w-xs mx-auto">
+                ابدأوا بإضافة أول أكلة من زرار (+ إضافة وصفة) أو اطلبوا من أم محمود اقتراحات وصفات مصرية شهية!
+              </p>
             </div>
-          ))}
+          ) : (
+            recipes.map((recipe) => (
+              <div
+                key={recipe.id}
+                className="bg-white border border-neutral-200/80 rounded-2xl p-4 shadow-sm hover:border-brand-200 transition-all space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-md">
+                      {recipe.category === 'LUNCH' ? 'غداء' : recipe.category === 'BREAKFAST' ? 'إفطار' : 'عشاء'}
+                    </span>
+                    <h3 className="font-extrabold text-base text-neutral-800 mt-1">
+                      {recipe.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {recipe.isFavoriteFady && (
+                      <span className="text-xs bg-rose-50 text-brand-700 px-2 py-1 rounded-xl font-bold flex items-center gap-1">
+                        <Heart className="w-3 h-3 fill-rose-500 text-rose-500" /> فادي
+                      </span>
+                    )}
+                    {recipe.isFavoriteRahma && (
+                      <span className="text-xs bg-rose-50 text-brand-700 px-2 py-1 rounded-xl font-bold flex items-center gap-1">
+                        <Heart className="w-3 h-3 fill-rose-500 text-rose-500" /> رحمة
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Nutritional & Prep Stats */}
+                <div className="grid grid-cols-4 gap-2 py-2 px-3 bg-neutral-50 rounded-xl text-center text-xs">
+                  <div>
+                    <span className="block text-[10px] text-neutral-400">الوقت</span>
+                    <span className="font-bold text-neutral-700">{recipe.prepTimeMins} د</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-neutral-400">السعرات</span>
+                    <span className="font-bold text-neutral-700">{recipe.calories}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-neutral-400">البروتين</span>
+                    <span className="font-bold text-neutral-700">{recipe.proteinG} جم</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-neutral-400">التكلفة</span>
+                    <span className="font-bold text-neutral-700">{recipe.estimatedCost} ج.م</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setSelectedRecipe(recipe)}
+                      className="text-xs text-brand-600 font-bold hover:underline"
+                    >
+                      المكونات والتحضير
+                    </button>
+                    <button
+                      onClick={() => openEditRecipe(recipe)}
+                      className="text-neutral-400 hover:text-brand-600 p-1"
+                      title="تعديل الوصفة"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRecipe(recipe.id)}
+                      className="text-neutral-400 hover:text-rose-500 p-1"
+                      title="حذف الوصفة"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setScheduleTargetRecipe(recipe);
+                      setIsScheduleOpen(true);
+                    }}
+                    className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center gap-1 transition-all"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>جدولة في الأسبوع</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -1007,6 +1084,110 @@ export default function KitchenPage() {
                 إلغاء
               </button>
             </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL 4: EDIT RECIPE */}
+      {editingRecipe && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <form
+            onSubmit={handleSaveEditRecipe}
+            className="w-full max-w-md bg-white rounded-3xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-extrabold text-sm text-neutral-800">تعديل الوصفة ✏️</h3>
+              <button
+                type="button"
+                onClick={() => setEditingRecipe(null)}
+                className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">اسم الأكلة</label>
+              <input
+                type="text"
+                required
+                value={editRecipeTitle}
+                onChange={(e) => setEditRecipeTitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">التصنيف</label>
+                <select
+                  value={editRecipeCategory}
+                  onChange={(e) => setEditRecipeCategory(e.target.value)}
+                  className="w-full px-2 py-2 rounded-xl border border-neutral-200 text-xs font-bold"
+                >
+                  <option value="BREAKFAST">إفطار</option>
+                  <option value="LUNCH">غداء</option>
+                  <option value="DINNER">عشاء</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">الأفراد</label>
+                <input
+                  type="number"
+                  value={editRecipeServings}
+                  onChange={(e) => setEditRecipeServings(e.target.value)}
+                  className="w-full px-2 py-2 rounded-xl border border-neutral-200 text-xs font-bold text-center"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">الوقت (دقيقة)</label>
+                <input
+                  type="number"
+                  value={editRecipePrepTime}
+                  onChange={(e) => setEditRecipePrepTime(e.target.value)}
+                  className="w-full px-2 py-2 rounded-xl border border-neutral-200 text-xs font-bold text-center"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">التكلفة التقديرية (ج.م)</label>
+              <input
+                type="number"
+                value={editRecipeCost}
+                onChange={(e) => setEditRecipeCost(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-bold text-center"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">المكونات (كل مكون في سطر)</label>
+              <textarea
+                rows={3}
+                value={editRecipeIngredients}
+                onChange={(e) => setEditRecipeIngredients(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs leading-relaxed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">خطوات التحضير (كل خطوة في سطر)</label>
+              <textarea
+                rows={3}
+                value={editRecipeInstructions}
+                onChange={(e) => setEditRecipeInstructions(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs leading-relaxed"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-brand-600/20 active:scale-95 transition-all"
+            >
+              حفظ التعديلات 💾
+            </button>
           </form>
         </div>
       )}

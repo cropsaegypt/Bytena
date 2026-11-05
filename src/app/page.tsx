@@ -18,61 +18,32 @@ import {
   Flame, 
   Award,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  Trash2
 } from 'lucide-react';
 
 const DEFAULT_DASHBOARD_DATA = {
   householdName: 'بيتنا - فادي ورحمة ❤️',
   monthlyBudget: 16000,
-  totalSpent: 1270,
-  remainingBudget: 14730,
-  mealPlans: [
-    {
-      id: 'm1',
-      mealType: 'BREAKFAST',
-      recipe: { title: 'شوفان بالحليب والموز والعسل 🍳', calories: 380, proteinG: 18 },
-      status: 'PREPARED',
-      notes: 'فطار صحي وخفيف',
-    },
-    {
-      id: 'm2',
-      mealType: 'LUNCH',
-      recipe: { title: 'مكرونة بالبشاميل بلدي أصلية 🍲', calories: 580, proteinG: 32 },
-      status: 'PLANNED',
-      notes: 'فادي طلبها ورحمة عملتها بكل حب ❤️',
-    },
-    {
-      id: 'm3',
-      mealType: 'DINNER',
-      customName: 'سلطة جبنة قريش بزيت الزيتون والزعتر 🥗',
-      status: 'PLANNED',
-      notes: 'عشاء خفيف ومريح',
-    },
-  ],
-  pendingShopping: [
-    { id: 's1', name: 'لبن حليب طبيعي (المراعي / جهينة)', needBuyQty: 2, unit: 'لتر' },
-    { id: 's2', name: 'لحم مفروم بلدي قليل الدهن', needBuyQty: 1, unit: 'كجم' },
-    { id: 's3', name: 'مسحوق غسيل أوتوماتيك أريال', needBuyQty: 1, unit: 'عبوة' },
-  ],
+  totalSpent: 0,
+  remainingBudget: 16000,
+  mealPlans: [],
+  pendingShopping: [],
   prayerRecord: {
-    fajr: true,
-    dhuhr: true,
+    fajr: false,
+    dhuhr: false,
     asr: false,
     maghrib: false,
     isha: false,
   },
-  tasks: [
-    { id: 't1', title: 'مسح وترتيب الصالة وتلميع الطاولات', isCompleted: true, pointsReward: 15 },
-    { id: 't2', title: 'شراء طلبات السوبرماركت وحمل النواقص', isCompleted: false, pointsReward: 25 },
-    { id: 't3', title: 'تفريغ وتعبئة غسالة الأطباق', isCompleted: false, pointsReward: 15 },
-  ],
-  totalPoints: 120,
-  totalWaterToday: 1500,
-  todayWorkout: { title: 'تمرين بنش وترايسبس بالجيم 💪' },
+  tasks: [],
+  totalPoints: 0,
+  totalWaterToday: 0,
+  todayWorkout: null,
   advice: {
     speaker: 'أم محمود',
     avatar: '👵🏼',
-    quote: 'صباح الفل يا ست الكل! يومنا النهارده هادي، متشيليش هم المطبخ وفادي مبسوط جداً بالبشاميل ❤️',
+    quote: 'صباح الفل والياسمين! يومكم جميل وسعيد ومبارك في بيتنا الدافئ يا فادي ويا رحمة ❤️',
   },
 };
 
@@ -80,6 +51,8 @@ export default function HomeDashboard() {
   const { currentUser, openQuickAction } = useUser();
   const [data, setData] = useState<any>(DEFAULT_DASHBOARD_DATA);
   const [loading, setLoading] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [isAddingTask, setIsAddingTask] = useState(false);
 
   const fetchDashboard = async () => {
     try {
@@ -150,6 +123,54 @@ export default function HomeDashboard() {
         }),
       });
     } catch (e) {
+      fetchDashboard();
+    }
+  };
+
+  // Add task directly from dashboard
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_task',
+          title: newTaskTitle.trim(),
+          pointsReward: 15,
+          assignedToUserId: currentUser.id,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setNewTaskTitle('');
+        setIsAddingTask(false);
+        fetchDashboard();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Delete task directly from dashboard
+  const handleDeleteTask = async (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('هل تريد حذف هذه المهمة؟')) return;
+    try {
+      setData((prev: any) => ({
+        ...prev,
+        tasks: prev.tasks.filter((t: any) => t.id !== taskId),
+      }));
+      await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_task',
+          taskId,
+        }),
+      });
+    } catch (err) {
       fetchDashboard();
     }
   };
@@ -436,8 +457,39 @@ export default function HomeDashboard() {
             <Sparkles className="w-4 h-4 text-amber-500" />
             <h3 className="text-sm font-extrabold text-neutral-800">مهام ونظافة البيت</h3>
           </div>
-          <span className="text-xs text-neutral-400">إنجاز المهام = مكافآت ونقاط 🎁</span>
+          <button
+            onClick={() => setIsAddingTask(!isAddingTask)}
+            className="text-xs text-brand-600 font-bold hover:underline flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> إضافة مهمة
+          </button>
         </div>
+
+        {isAddingTask && (
+          <form onSubmit={handleAddTask} className="flex gap-2 p-2 bg-neutral-50 rounded-xl border border-neutral-200">
+            <input
+              type="text"
+              placeholder="اسم المهمة الجديدة (مثال: ترتيب المطبخ)..."
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+              autoFocus
+            />
+            <button
+              type="submit"
+              className="px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-lg hover:bg-brand-700 active:scale-95 transition-all"
+            >
+              حفظ
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAddingTask(false)}
+              className="px-2 py-1.5 text-xs text-neutral-500 hover:text-neutral-700"
+            >
+              إلغاء
+            </button>
+          </form>
+        )}
 
         <div className="space-y-2">
           {data.tasks && data.tasks.length > 0 ? (
@@ -451,23 +503,39 @@ export default function HomeDashboard() {
                     : 'bg-white border-neutral-200/80 hover:border-amber-200'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
                   {task.isCompleted ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   ) : (
                     <Circle className="w-4 h-4 text-neutral-300 shrink-0" />
                   )}
-                  <span className="text-xs font-bold text-neutral-800">{task.title}</span>
+                  <span className="text-xs font-bold text-neutral-800 truncate">{task.title}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
                     +{task.pointsReward} نقطة
                   </span>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteTask(task.id, e)}
+                    className="p-1 text-neutral-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                    title="حذف المهمة"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-xs text-neutral-400 py-2 text-center">لا توجد مهام معلقة اليوم</p>
+            <div className="py-4 text-center">
+              <p className="text-xs text-neutral-400">لا توجد مهام معلقة اليوم، البيت نظيف ومرتب! ✨</p>
+              <button
+                onClick={() => setIsAddingTask(true)}
+                className="mt-1 text-[11px] font-bold text-brand-600 hover:underline"
+              >
+                + إضافة مهمة منزلية جديدة
+              </button>
+            </div>
           )}
         </div>
       </section>

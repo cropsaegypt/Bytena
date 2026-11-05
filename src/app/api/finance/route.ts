@@ -28,42 +28,11 @@ export async function GET() {
       take: 10,
     });
 
-    const FALLBACK_EXPENSES = [
-      {
-        id: 'e1',
-        title: 'مشتريات كارفور الأسبوعية (خضار وألبان)',
-        amount: 850,
-        category: 'FOOD',
-        paidBy: { displayName: 'فادي' },
-        expenseDate: new Date().toISOString(),
-        paymentMethod: 'CARD',
-      },
-      {
-        id: 'e2',
-        title: 'اشتراك الجيم الشهري - فادي',
-        amount: 600,
-        category: 'HEALTH_GYM',
-        paidBy: { displayName: 'فادي' },
-        expenseDate: new Date().toISOString(),
-        paymentMethod: 'CARD',
-      },
-      {
-        id: 'e3',
-        title: 'فاتورة الكهرباء والغاز الطبيعي',
-        amount: 420,
-        category: 'UTILITIES',
-        paidBy: { displayName: 'فادي' },
-        expenseDate: new Date().toISOString(),
-        paymentMethod: 'INSTAPAY',
-      },
-    ];
+    const totalSpent = (expenses || []).reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
-    const finalExpenses = expenses.length > 0 ? expenses : FALLBACK_EXPENSES;
-    const finalTotalSpent = finalExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-
-    const finalCategoryTotals: Record<string, number> = {};
-    finalExpenses.forEach((exp) => {
-      finalCategoryTotals[exp.category] = (finalCategoryTotals[exp.category] || 0) + exp.amount;
+    const categoryTotals: Record<string, number> = {};
+    (expenses || []).forEach((exp) => {
+      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + (exp.amount || 0);
     });
 
     const budget = household?.monthlyBudgetTarget || 16000;
@@ -71,52 +40,20 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       budget,
-      totalSpent: finalTotalSpent,
-      remaining: Math.max(0, budget - finalTotalSpent),
-      categoryTotals: finalCategoryTotals,
-      expenses: finalExpenses,
-      invoices,
+      totalSpent,
+      remaining: Math.max(0, budget - totalSpent),
+      categoryTotals,
+      expenses: expenses || [],
+      invoices: invoices || [],
     });
   } catch (err: any) {
     return NextResponse.json({
       success: true,
       budget: 16000,
-      totalSpent: 1870,
-      remaining: 14130,
-      categoryTotals: {
-        FOOD: 850,
-        UTILITIES: 420,
-        HEALTH_GYM: 600,
-      },
-      expenses: [
-        {
-          id: 'e1',
-          title: 'مشتريات كارفور الأسبوعية (خضار وألبان)',
-          amount: 850,
-          category: 'FOOD',
-          paidBy: { displayName: 'فادي' },
-          expenseDate: new Date().toISOString(),
-          paymentMethod: 'CARD',
-        },
-        {
-          id: 'e2',
-          title: 'اشتراك الجيم الشهري - فادي',
-          amount: 600,
-          category: 'HEALTH_GYM',
-          paidBy: { displayName: 'فادي' },
-          expenseDate: new Date().toISOString(),
-          paymentMethod: 'CARD',
-        },
-        {
-          id: 'e3',
-          title: 'فاتورة الكهرباء والغاز الطبيعي',
-          amount: 420,
-          category: 'UTILITIES',
-          paidBy: { displayName: 'فادي' },
-          expenseDate: new Date().toISOString(),
-          paymentMethod: 'INSTAPAY',
-        },
-      ],
+      totalSpent: 0,
+      remaining: 16000,
+      categoryTotals: {},
+      expenses: [],
       invoices: [],
     });
   }
@@ -124,6 +61,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    await ensureDatabaseInitialized();
     const body = await request.json();
     const { action } = body;
 
@@ -147,7 +85,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, expense });
     }
 
-    // 2. Scan Invoice with AI
+    // 2. Edit expense
+    if (action === 'edit_expense') {
+      const { id, title, amount, category, paidByUserId, paymentMethod, notes, expenseDate } = body;
+
+      const updated = await prisma.expense.update({
+        where: { id },
+        data: {
+          title,
+          amount: parseFloat(amount),
+          category: category || 'FOOD',
+          paidByUserId: paidByUserId || 'fady',
+          paymentMethod: paymentMethod || 'CASH',
+          notes: notes || null,
+          expenseDate: expenseDate ? new Date(expenseDate) : undefined,
+        },
+      });
+
+      return NextResponse.json({ success: true, expense: updated });
+    }
+
+    // 3. Delete expense
+    if (action === 'delete_expense') {
+      const { id } = body;
+      await prisma.expense.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+
+    // 4. Scan Invoice with AI
     if (action === 'scan_invoice') {
       const { imageBase64, userId } = body;
       const aiService = getAIService();
@@ -176,7 +141,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 3. Confirm Invoice and Record Expense
+    // 5. Confirm Invoice and Record Expense
     if (action === 'confirm_invoice') {
       const { invoiceId, approvedAmount, approvedCategory, approvedTitle, markShoppingItemsPurchased, userId } = body;
 
@@ -228,7 +193,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, expense });
     }
 
-    // 4. Update monthly budget
+    // 6. Update monthly budget
     if (action === 'update_budget') {
       const { monthlyBudgetTarget } = body;
       const updated = await prisma.household.update({
