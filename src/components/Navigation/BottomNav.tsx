@@ -19,6 +19,8 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { openQuickAction } = useUser();
 
+  const isAssistantOrLogin = pathname === '/assistant' || pathname === '/login';
+
   const navItems = [
     { label: 'الرئيسية', href: '/', icon: Home },
     { label: 'مطبخنا', href: '/kitchen', icon: UtensilsCrossed },
@@ -29,19 +31,23 @@ export default function BottomNav() {
     { label: 'أم محمود', href: '/assistant', icon: Sparkles },
   ];
 
+  if (pathname === '/login') return null;
+
   return (
     <>
-      {/* Floating Action Button (FAB) - Centered or bottom-left */}
-      <div className="fixed bottom-20 left-4 z-40 md:left-8">
-        <button
-          onClick={openQuickAction}
-          className="w-13 h-13 p-3.5 rounded-full bg-gradient-to-r from-brand-600 to-rose-500 text-white shadow-xl shadow-brand-500/35 hover:scale-110 active:scale-95 transition-all flex items-center justify-center border-2 border-white"
-          title="إجراء سريع"
-          aria-label="إجراء سريع"
-        >
-          <Plus className="w-6 h-6 stroke-[2.5]" />
-        </button>
-      </div>
+      {/* Floating Action Button (FAB) - Hidden on Assistant page so it never covers the Send button */}
+      {!isAssistantOrLogin && (
+        <div className="fixed bottom-20 left-4 z-40 md:left-8">
+          <button
+            onClick={openQuickAction}
+            className="w-13 h-13 p-3.5 rounded-full bg-gradient-to-r from-brand-600 to-rose-500 text-white shadow-xl shadow-brand-500/35 hover:scale-110 active:scale-95 transition-all flex items-center justify-center border-2 border-white"
+            title="إجراء سريع"
+            aria-label="إجراء سريع"
+          >
+            <Plus className="w-6 h-6 stroke-[2.5]" />
+          </button>
+        </div>
+      )}
 
       {/* Main Bottom App Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 glass-nav border-t border-neutral-200/80 px-2 py-1.5 transition-all">

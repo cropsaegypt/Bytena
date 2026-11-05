@@ -28,11 +28,12 @@ model Household {
 model User {
   id          String   @id // "fady", "rahma", or UUID
   householdId String   @default("baytna-main")
-  displayName String   // "فادي", "رحمة"
-  role        String   // "OWNER_FADY", "OWNER_RAHMA", "MEMBER"
-  avatar      String?  // Avatar image path or preset identifier
-  pinHash     String   // 4-digit PIN for private health/medical data ("1234" by default, changeable)
-  createdAt   DateTime @default(now())
+  displayName  String   // "فادي", "رحمة"
+  role         String   // "OWNER_FADY", "OWNER_RAHMA", "MEMBER"
+  avatar       String?  // Avatar image path or preset identifier
+  passwordHash String   @default("123456") // Password for login
+  pinHash      String   @default("1234") // 4-digit PIN for private health/medical data
+  createdAt    DateTime @default(now())
 
   household         Household            @relation(fields: [householdId], references: [id])
   healthProfile     HealthProfile?

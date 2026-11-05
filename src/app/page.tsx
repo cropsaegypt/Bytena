@@ -21,26 +21,85 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 
+const DEFAULT_DASHBOARD_DATA = {
+  householdName: 'بيتنا - فادي ورحمة ❤️',
+  monthlyBudget: 16000,
+  totalSpent: 1270,
+  remainingBudget: 14730,
+  mealPlans: [
+    {
+      id: 'm1',
+      mealType: 'BREAKFAST',
+      recipe: { title: 'شوفان بالحليب والموز والعسل 🍳', calories: 380, proteinG: 18 },
+      status: 'PREPARED',
+      notes: 'فطار صحي وخفيف',
+    },
+    {
+      id: 'm2',
+      mealType: 'LUNCH',
+      recipe: { title: 'مكرونة بالبشاميل بلدي أصلية 🍲', calories: 580, proteinG: 32 },
+      status: 'PLANNED',
+      notes: 'فادي طلبها ورحمة عملتها بكل حب ❤️',
+    },
+    {
+      id: 'm3',
+      mealType: 'DINNER',
+      customName: 'سلطة جبنة قريش بزيت الزيتون والزعتر 🥗',
+      status: 'PLANNED',
+      notes: 'عشاء خفيف ومريح',
+    },
+  ],
+  pendingShopping: [
+    { id: 's1', name: 'لبن حليب طبيعي (المراعي / جهينة)', needBuyQty: 2, unit: 'لتر' },
+    { id: 's2', name: 'لحم مفروم بلدي قليل الدهن', needBuyQty: 1, unit: 'كجم' },
+    { id: 's3', name: 'مسحوق غسيل أوتوماتيك أريال', needBuyQty: 1, unit: 'عبوة' },
+  ],
+  prayerRecord: {
+    fajr: true,
+    dhuhr: true,
+    asr: false,
+    maghrib: false,
+    isha: false,
+  },
+  tasks: [
+    { id: 't1', title: 'مسح وترتيب الصالة وتلميع الطاولات', isCompleted: true, pointsReward: 15 },
+    { id: 't2', title: 'شراء طلبات السوبرماركت وحمل النواقص', isCompleted: false, pointsReward: 25 },
+    { id: 't3', title: 'تفريغ وتعبئة غسالة الأطباق', isCompleted: false, pointsReward: 15 },
+  ],
+  totalPoints: 120,
+  totalWaterToday: 1500,
+  todayWorkout: { title: 'تمرين بنش وترايسبس بالجيم 💪' },
+  advice: {
+    speaker: 'أم محمود',
+    avatar: '👵🏼',
+    quote: 'صباح الفل يا ست الكل! يومنا النهارده هادي، متشيليش هم المطبخ وفادي مبسوط جداً بالبشاميل ❤️',
+  },
+};
+
 export default function HomeDashboard() {
   const { currentUser, openQuickAction } = useUser();
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any>(DEFAULT_DASHBOARD_DATA);
+  const [loading, setLoading] = useState(false);
 
   const fetchDashboard = async () => {
     try {
       const res = await fetch(`/api/home?userId=${currentUser.id}`);
       const json = await res.json();
-      if (json.success) {
+      if (json.success && json.data) {
         setData(json.data);
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.warn('Dashboard background update:', err);
     }
   };
 
   useEffect(() => {
+    // Check if user is logged in
+    const isLoggedIn = localStorage.getItem('baytna_logged_in');
+    if (!isLoggedIn) {
+      window.location.href = '/login';
+      return;
+    }
     fetchDashboard();
   }, [currentUser.id]);
 

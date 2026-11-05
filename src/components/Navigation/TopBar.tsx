@@ -2,11 +2,24 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
-import { Bell, FileText, Heart, Sparkles } from 'lucide-react';
+import { FileText, Heart, LogOut } from 'lucide-react';
 
 export default function TopBar() {
+  const pathname = usePathname();
+  const router = useRouter();
   const { currentUser, switchUser } = useUser();
+
+  const isLoginPage = pathname === '/login';
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    localStorage.removeItem('baytna_logged_in');
+    router.push('/login');
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full glass-nav border-b border-rose-100/60 px-4 py-2.5 transition-all">
@@ -26,43 +39,54 @@ export default function TopBar() {
           </div>
         </Link>
 
-        {/* Center/Left side: User Switcher & Actions */}
-        <div className="flex items-center gap-2">
-          {/* User Switcher Pill */}
-          <div className="bg-neutral-100 p-1 rounded-2xl flex items-center gap-1 border border-neutral-200/60 shadow-inner">
-            <button
-              onClick={() => switchUser('fady')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                currentUser.id === 'fady'
-                  ? 'bg-white text-brand-600 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
+        {/* Center/Left side: User Switcher & Logout */}
+        {!isLoginPage && (
+          <div className="flex items-center gap-2">
+            {/* User Switcher Pill */}
+            <div className="bg-neutral-100 p-1 rounded-2xl flex items-center gap-1 border border-neutral-200/60 shadow-inner">
+              <button
+                onClick={() => switchUser('fady')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  currentUser.id === 'fady'
+                    ? 'bg-white text-brand-600 shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-700'
+                }`}
+              >
+                <span className="text-sm">👨🏻‍💻</span>
+                <span>فادي</span>
+              </button>
+              <button
+                onClick={() => switchUser('rahma')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  currentUser.id === 'rahma'
+                    ? 'bg-white text-brand-600 shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-700'
+                }`}
+              >
+                <span className="text-sm">👩🏻‍🍳</span>
+                <span>رحمة</span>
+              </button>
+            </div>
+
+            {/* Weekly Report Shortcut */}
+            <Link
+              href="/reports"
+              title="تقرير الأسبوع"
+              className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 flex items-center justify-center border border-amber-200/60 transition-colors"
             >
-              <span className="text-sm">👨🏻‍💻</span>
-              <span>فادي</span>
-            </button>
+              <FileText className="w-4 h-4" />
+            </Link>
+
+            {/* Logout button */}
             <button
-              onClick={() => switchUser('rahma')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                currentUser.id === 'rahma'
-                  ? 'bg-white text-brand-600 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
+              onClick={handleLogout}
+              title="تسجيل الخروج وقفل التطبيق"
+              className="w-9 h-9 rounded-xl bg-neutral-100 hover:bg-rose-50 text-neutral-500 hover:text-rose-600 flex items-center justify-center border border-neutral-200/60 transition-colors"
             >
-              <span className="text-sm">👩🏻‍🍳</span>
-              <span>رحمة</span>
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Weekly Report Shortcut */}
-          <Link
-            href="/reports"
-            title="تقرير الأسبوع"
-            className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 flex items-center justify-center border border-amber-200/60 transition-colors"
-          >
-            <FileText className="w-4 h-4" />
-          </Link>
-        </div>
+        )}
 
       </div>
     </header>
