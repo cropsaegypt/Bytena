@@ -4,21 +4,70 @@ import { ensureDatabaseInitialized } from '@/lib/init-db';
 
 export const dynamic = 'force-dynamic';
 
+function getTodayUtcDate(): Date {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0]; // "YYYY-MM-DD"
+  return new Date(`${dateStr}T00:00:00.000Z`);
+}
+
+function calculateStreak(history: any[]): number {
+  if (!history || history.length === 0) return 0;
+
+  // Map of date string -> hadPrayers
+  const dayMap = new Map<string, boolean>();
+  for (const h of history) {
+    const dStr = new Date(h.date).toISOString().split('T')[0];
+    const hadPrayer = !!(h.fajr || h.dhuhr || h.asr || h.maghrib || h.isha);
+    if (!dayMap.has(dStr)) {
+      dayMap.set(dStr, hadPrayer);
+    }
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  let streak = 0;
+  let checkDate = new Date();
+
+  // If today has prayers, start with today; otherwise start from yesterday to see current ongoing streak
+  const todayPrayed = dayMap.get(todayStr);
+  if (todayPrayed) {
+    streak++;
+    checkDate.setDate(checkDate.getDate() - 1);
+  } else {
+    // If today is not completed yet, check if yesterday had prayers
+    checkDate.setDate(checkDate.getDate() - 1);
+    const yesterdayStr = checkDate.toISOString().split('T')[0];
+    if (!dayMap.get(yesterdayStr)) {
+      return 0; // broken streak
+    }
+  }
+
+  // Walk backwards day by day
+  for (let i = 0; i < 60; i++) {
+    const dStr = checkDate.toISOString().split('T')[0];
+    if (dayMap.get(dStr)) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId') || 'fady';
 
   try {
     await ensureDatabaseInitialized();
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayDate = getTodayUtcDate();
 
     let record = await prisma.prayerRecord.findUnique({
       where: {
         userId_date: {
           userId,
-          date: todayStart,
+          date: todayDate,
         },
       },
     });
@@ -27,7 +76,7 @@ export async function GET(request: Request) {
       record = await prisma.prayerRecord.create({
         data: {
           userId,
-          date: todayStart,
+          date: todayDate,
           fajr: false,
           dhuhr: false,
           asr: false,
@@ -40,49 +89,64 @@ export async function GET(request: Request) {
       });
     }
 
-    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
-    const history = await prisma.prayerRecord.findMany({
-      where: {
-        userId,
-        date: { gte: sevenDaysAgo },
-      },
+    const allRecords = await prisma.prayerRecord.findMany({
+      where: { userId },
       orderBy: { date: 'desc' },
+      take: 30,
     });
 
-    return NextResponse.json({ success: true, record, history });
+    const streakDays = calculateStreak(allRecords);
+
+    const completedTodayCount = [
+      record.fajr,
+      record.dhuhr,
+      record.asr,
+      record.maghrib,
+      record.isha,
+    ].filter(Boolean).length;
+
+    return NextResponse.json({
+      success: true,
+      record,
+      history: allRecords.slice(0, 7),
+      streakDays,
+      completedTodayCount,
+    });
   } catch (err: any) {
     return NextResponse.json({
       success: true,
       record: {
-        id: 'p-default',
+        id: 'p-clean',
         userId,
-        fajr: true,
-        dhuhr: true,
+        fajr: false,
+        dhuhr: false,
         asr: false,
         maghrib: false,
         isha: false,
-        morningDhikr: true,
+        morningDhikr: false,
         eveningDhikr: false,
-        quranPages: 4,
+        quranPages: 0,
       },
       history: [],
+      streakDays: 0,
+      completedTodayCount: 0,
     });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await ensureDatabaseInitialized();
     const body = await request.json();
     const { userId, field, value } = body;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayDate = getTodayUtcDate();
 
     const updated = await prisma.prayerRecord.upsert({
       where: {
         userId_date: {
           userId,
-          date: todayStart,
+          date: todayDate,
         },
       },
       update: {
@@ -90,7 +154,7 @@ export async function POST(request: Request) {
       },
       create: {
         userId,
-        date: todayStart,
+        date: todayDate,
         [field]: value,
       },
     });
@@ -109,17 +173,31 @@ export async function POST(request: Request) {
         quranPages: 'تلاوة ورد القرآن الكريم',
       };
 
-      await prisma.pointsTransaction.create({
-        data: {
-          userId,
-          points,
-          category: 'PRAYER',
-          reason: `الالتزام بـ ${names[field] || 'العبادة'} 🌟`,
-        },
-      });
+      try {
+        await prisma.pointsTransaction.create({
+          data: {
+            userId,
+            points,
+            category: 'PRAYER',
+            reason: `الالتزام بـ ${names[field] || 'العبادة'} 🌟`,
+          },
+        });
+      } catch {}
     }
 
-    return NextResponse.json({ success: true, record: updated });
+    const allRecords = await prisma.prayerRecord.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' },
+      take: 30,
+    });
+
+    const streakDays = calculateStreak(allRecords);
+
+    return NextResponse.json({
+      success: true,
+      record: updated,
+      streakDays,
+    });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

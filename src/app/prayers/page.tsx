@@ -16,7 +16,9 @@ import {
   Sun,
   HeartHandshake,
   Check,
-  Trash2
+  Trash2,
+  Flame,
+  Calendar
 } from 'lucide-react';
 
 const DEFAULT_PRAYER_RECORD = {
@@ -42,6 +44,8 @@ export default function PrayersAndRewardsPage() {
   const { currentUser } = useUser();
   const [loading, setLoading] = useState(false);
   const [prayerRecord, setPrayerRecord] = useState<any>(DEFAULT_PRAYER_RECORD);
+  const [streakDays, setStreakDays] = useState<number>(0);
+  const [historyDays, setHistoryDays] = useState<any[]>([]);
   const [rewardsData, setRewardsData] = useState<any>(DEFAULT_REWARDS_DATA);
   const [activeTab, setActiveTab] = useState<'prayers' | 'rewards'>('prayers');
   
@@ -54,7 +58,24 @@ export default function PrayersAndRewardsPage() {
   
   const [notification, setNotification] = useState<string | null>(null);
 
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const localCacheKey = `baytna_prayers_${currentUser.id}_${todayDateStr}`;
+
   const loadData = async () => {
+    // 1. Recover instant local storage cache
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(localCacheKey);
+        if (cached) {
+          setPrayerRecord((prev: any) => ({ ...prev, ...JSON.parse(cached) }));
+        }
+        const cachedStreak = localStorage.getItem(`baytna_streak_${currentUser.id}`);
+        if (cachedStreak) {
+          setStreakDays(parseInt(cachedStreak) || 0);
+        }
+      } catch {}
+    }
+
     try {
       const [resPrayers, resRewards] = await Promise.all([
         fetch(`/api/prayers?userId=${currentUser.id}`),
@@ -63,7 +84,35 @@ export default function PrayersAndRewardsPage() {
       const jsonPrayers = await resPrayers.json();
       const jsonRewards = await resRewards.json();
 
-      if (jsonPrayers.success) setPrayerRecord(jsonPrayers.record);
+      if (jsonPrayers.success && jsonPrayers.record) {
+        setPrayerRecord((prev: any) => {
+          const merged = {
+            ...jsonPrayers.record,
+            fajr: prev.fajr || jsonPrayers.record.fajr,
+            dhuhr: prev.dhuhr || jsonPrayers.record.dhuhr,
+            asr: prev.asr || jsonPrayers.record.asr,
+            maghrib: prev.maghrib || jsonPrayers.record.maghrib,
+            isha: prev.isha || jsonPrayers.record.isha,
+            morningDhikr: prev.morningDhikr || jsonPrayers.record.morningDhikr,
+            eveningDhikr: prev.eveningDhikr || jsonPrayers.record.eveningDhikr,
+            quranPages: Math.max(prev.quranPages || 0, jsonPrayers.record.quranPages || 0),
+          };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(localCacheKey, JSON.stringify(merged));
+          }
+          return merged;
+        });
+
+        if (typeof jsonPrayers.streakDays === 'number') {
+          setStreakDays(jsonPrayers.streakDays);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`baytna_streak_${currentUser.id}`, jsonPrayers.streakDays.toString());
+          }
+        }
+        if (jsonPrayers.history) {
+          setHistoryDays(jsonPrayers.history);
+        }
+      }
       if (jsonRewards.success) setRewardsData(jsonRewards);
     } catch (e) {
       console.error(e);
@@ -85,7 +134,23 @@ export default function PrayersAndRewardsPage() {
   const handleToggle = async (field: string, currentVal: any) => {
     const newVal = typeof currentVal === 'boolean' ? !currentVal : currentVal + 1;
     
-    setPrayerRecord((prev: any) => ({ ...prev, [field]: newVal }));
+    setPrayerRecord((prev: any) => {
+      const updated = { ...prev, [field]: newVal };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(localCacheKey, JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    if (newVal === true) {
+      setStreakDays((prev) => {
+        const next = Math.max(1, prev === 0 ? 1 : prev);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`baytna_streak_${currentUser.id}`, next.toString());
+        }
+        return next;
+      });
+    }
 
     // Send loving prayer notification when a prayer is completed
     if (newVal === true && ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(field)) {
@@ -107,10 +172,11 @@ export default function PrayersAndRewardsPage() {
           : `رحمة صلت ${prayerNames[field]} ودعتلك ربنا يفتحها في وشك ويحفظك ليها يا سندي يا غالي 💕`,
         emoji: '🤲',
       });
+      showNotification(`تقبل الله منك يا ${currentUser.displayName}! تم إرسال دعوة لـ ${isFady ? 'رحمة' : 'فادي'} 💕`);
     }
 
     try {
-      await fetch('/api/prayers', {
+      const res = await fetch('/api/prayers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -119,9 +185,15 @@ export default function PrayersAndRewardsPage() {
           value: newVal,
         }),
       });
-      loadData();
+      const data = await res.json();
+      if (data.success && typeof data.streakDays === 'number') {
+        setStreakDays(data.streakDays);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`baytna_streak_${currentUser.id}`, data.streakDays.toString());
+        }
+      }
     } catch (e) {
-      loadData();
+      // offline-first cache preserved
     }
   };
 
@@ -219,6 +291,15 @@ export default function PrayersAndRewardsPage() {
     { key: 'isha', label: 'صلاة العشاء', icon: '🌌' },
   ];
 
+  const completedPrayersCount = [
+    prayerRecord.fajr,
+    prayerRecord.dhuhr,
+    prayerRecord.asr,
+    prayerRecord.maghrib,
+    prayerRecord.isha,
+  ].filter(Boolean).length;
+  const prayerPercentage = Math.round((completedPrayersCount / 5) * 100);
+
   return (
     <div className="space-y-4 pb-12 animate-fadeIn">
       
@@ -269,6 +350,46 @@ export default function PrayersAndRewardsPage() {
       {/* TAB 1: PRAYERS & DHIKR */}
       {activeTab === 'prayers' && (
         <div className="space-y-3">
+
+          {/* Streak & Adherence Hero Card */}
+          <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white rounded-3xl p-4 shadow-lg shadow-indigo-950/20 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-3 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-2xl shrink-0">
+                  🔥
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-white">
+                      أيام الالتزام بالصلاة المتتالية
+                    </span>
+                    <span className="text-xs bg-amber-400 text-neutral-900 font-black px-2.5 py-0.5 rounded-full shadow-sm">
+                      {streakDays} {streakDays === 1 ? 'يوم' : streakDays === 2 ? 'يومان' : 'أيام'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-indigo-200 mt-1 font-medium">
+                    {streakDays > 0 
+                      ? `ما شاء الله يا ${currentUser.displayName}! بقالك ${streakDays} ${streakDays === 1 ? 'يوم' : 'أيام'} مستمر في بيتنا المبارك ✨`
+                      : `ابدأ صلوات اليوم وسجل أول أيام التزامك يا ${currentUser.displayName} 🌟`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Today's Progress Bar */}
+            <div className="mt-3 pt-3 border-t border-white/10 relative z-10">
+              <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
+                <span className="text-indigo-200">إنجاز صلوات اليوم</span>
+                <span className="text-amber-300 font-black">{completedPrayersCount} من 5 صلوات ({prayerPercentage}%)</span>
+              </div>
+              <div className="w-full h-2.5 bg-black/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-400 to-emerald-400 rounded-full transition-all duration-500"
+                  style={{ width: `${prayerPercentage}%` }}
+                />
+              </div>
+            </div>
+          </div>
           
           {/* Gentle Positive Note */}
           <div className="p-3.5 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl flex items-center gap-3">

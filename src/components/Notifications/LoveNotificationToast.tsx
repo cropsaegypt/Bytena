@@ -1,23 +1,83 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useUser } from '@/context/UserContext';
-import { Heart, X, Bell, Sparkles } from 'lucide-react';
+import { Heart, X, Bell, Sparkles, CheckCircle2 } from 'lucide-react';
 import { 
   LoveNotificationPayload, 
   LOVE_MESSAGES_CATALOG, 
   triggerLoveNotification,
-  requestNotificationPermission 
+  requestNotificationPermission,
+  displayReceivedNotification
 } from '@/lib/love-notifications';
 
 export default function LoveNotificationToast() {
   const { currentUser } = useUser();
   const [currentNotification, setCurrentNotification] = useState<LoveNotificationPayload | null>(null);
+  const [sentToast, setSentToast] = useState<{ partnerName: string; title: string } | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean>(true);
   const [showPermissionBanner, setShowPermissionBanner] = useState<boolean>(false);
+  const processedNotifIds = useRef<Set<string>>(new Set());
+
+  // 1. Poll server for real-time notifications sent to the current user by the partner
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkIncomingNotifications = async () => {
+      if (!currentUser?.id) return;
+      try {
+        const res = await fetch(`/api/notifications?userId=${currentUser.id}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.notifications) && data.notifications.length > 0) {
+          const fresh = data.notifications.filter((n: any) => !processedNotifIds.current.has(n.id));
+          if (fresh.length > 0) {
+            const latest = fresh[0];
+            processedNotifIds.current.add(latest.id);
+
+            // Trigger notification specifically on recipient's screen
+            displayReceivedNotification({
+              id: latest.id,
+              fromUserId: latest.fromUserId,
+              toUserId: latest.toUserId,
+              type: latest.type,
+              title: latest.title,
+              body: latest.body,
+              emoji: latest.emoji,
+              timestamp: new Date(latest.createdAt).getTime(),
+            });
+
+            // Mark as read on server
+            fetch('/api/notifications', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'mark_read',
+                ids: fresh.map((n: any) => n.id),
+              }),
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        // Silent fail in background poll
+      }
+    };
+
+    checkIncomingNotifications();
+    const pollInterval = setInterval(checkIncomingNotifications, 6000);
+
+    // Also check on window focus
+    const onFocus = () => checkIncomingNotifications();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [currentUser.id]);
 
   useEffect(() => {
-    // 1. Check notification permission
+    // 2. Check notification permission
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
         setHasPermission(false);
@@ -26,34 +86,28 @@ export default function LoveNotificationToast() {
       }
     }
 
-    // 2. Listen to love notification events
+    // 3. Listen to incoming love notification event (received for this user)
     const handleLoveEvent = (e: CustomEvent<LoveNotificationPayload>) => {
       setCurrentNotification(e.detail);
-      // Auto dismiss after 7 seconds
+      // Auto dismiss after 8 seconds
       const timer = setTimeout(() => {
         setCurrentNotification((prev) => (prev?.id === e.detail.id ? null : prev));
-      }, 7000);
+      }, 8000);
       return () => clearTimeout(timer);
     };
 
-    window.addEventListener('baytna_love_notification' as any, handleLoveEvent);
+    // 4. Listen to confirmation when current user sends an action
+    const handleSentEvent = (e: CustomEvent<{ partnerName: string; title: string }>) => {
+      setSentToast(e.detail);
+      setTimeout(() => setSentToast(null), 4000);
+    };
 
-    // 3. Periodic Love Spark (Every 15 minutes of app usage)
-    const periodicInterval = setInterval(() => {
-      const sparks = LOVE_MESSAGES_CATALOG.PERIODIC_SPARKS;
-      const randomSpark = sparks[Math.floor(Math.random() * sparks.length)];
-      triggerLoveNotification({
-        type: 'PERIODIC_SPARK',
-        fromUserId: currentUser.id === 'fady' ? 'rahma' : 'fady',
-        title: randomSpark.title,
-        body: randomSpark.body,
-        emoji: '❤️',
-      });
-    }, 15 * 60 * 1000);
+    window.addEventListener('baytna_love_notification' as any, handleLoveEvent);
+    window.addEventListener('baytna_notification_sent' as any, handleSentEvent);
 
     return () => {
       window.removeEventListener('baytna_love_notification' as any, handleLoveEvent);
-      clearInterval(periodicInterval);
+      window.removeEventListener('baytna_notification_sent' as any, handleSentEvent);
     };
   }, [currentUser.id]);
 
@@ -61,14 +115,6 @@ export default function LoveNotificationToast() {
     const granted = await requestNotificationPermission();
     setHasPermission(granted);
     setShowPermissionBanner(false);
-    if (granted) {
-      triggerLoveNotification({
-        type: 'LOVE_NOTE',
-        fromUserId: currentUser.id === 'fady' ? 'fady' : 'rahma',
-        title: 'تم تفعيل إشعارات الحب على الموبايل! 🔔❤️',
-        body: 'دلوقتي أي دعوة أو طبخة أو رسالة حب هتوصلكم مباشرة على شاشة الهاتف فوراً ✨',
-      });
-    }
   };
 
   const handleDismissPermission = () => {
@@ -78,7 +124,7 @@ export default function LoveNotificationToast() {
 
   return (
     <>
-      {/* 1. Floating Love Toast */}
+      {/* 1. Floating Love Toast from Partner */}
       {currentNotification && (
         <div className="fixed top-3 left-0 right-0 z-50 px-2.5 sm:px-3 pointer-events-none flex justify-center transition-all animate-in fade-in slide-in-from-top-6 duration-300 w-full max-w-full">
           <div className="w-full max-w-md md:max-w-xl pointer-events-auto bg-gradient-to-r from-rose-600 via-brand-600 to-pink-600 text-white rounded-3xl p-3 sm:p-3.5 shadow-2xl shadow-rose-950/30 border-2 border-white/30 backdrop-blur-md flex items-start justify-between gap-2.5 sm:gap-3 relative overflow-hidden">
@@ -112,7 +158,17 @@ export default function LoveNotificationToast() {
         </div>
       )}
 
-      {/* 2. Optional Prompt to Enable Real Mobile Lockscreen Push Notifications */}
+      {/* 2. Sender Confirmation Toast: "تم إرسال إشعار لـ رحمة / فادي" */}
+      {sentToast && !currentNotification && (
+        <div className="fixed top-3 left-0 right-0 z-50 px-3 pointer-events-none flex justify-center animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="pointer-events-auto bg-neutral-900/90 backdrop-blur-md text-white rounded-full px-4 py-2 shadow-xl border border-white/20 flex items-center gap-2 text-xs font-bold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>تم إرسال إشعار لـ {sentToast.partnerName} بكل حب 💕</span>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Optional Prompt to Enable Real Mobile Lockscreen Push Notifications */}
       {showPermissionBanner && !hasPermission && (
         <div className="fixed bottom-24 left-0 right-0 z-40 px-2.5 sm:px-3 pointer-events-none flex justify-center animate-in slide-in-from-bottom-4 w-full max-w-full">
           <div className="w-full max-w-md pointer-events-auto bg-white rounded-2xl p-2.5 sm:p-3 shadow-xl border border-rose-200 flex items-center justify-between gap-2">
@@ -123,7 +179,7 @@ export default function LoveNotificationToast() {
               <div className="text-right">
                 <h4 className="text-xs font-black text-neutral-800">إشعارات بيتنا على الموبايل 🔔</h4>
                 <p className="text-[10px] text-neutral-500 font-medium">
-                  علشان يجيلك إشعار حب لما الطرف التاني يطبخ أو يصلي
+                  علشان يجيلك إشعار حب أول ما الطرف التاني يطبخ أو يصلي
                 </p>
               </div>
             </div>

@@ -116,29 +116,27 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
-// Send real system notification & in-app event
-export function triggerLoveNotification(payload: LoveNotificationPayload) {
-  if (typeof window === 'undefined') return;
-
-  const fullPayload: LoveNotificationPayload = {
-    ...payload,
-    id: payload.id || `love_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    timestamp: payload.timestamp || Date.now(),
-    toUserId: payload.toUserId || (payload.fromUserId === 'fady' ? 'rahma' : 'fady'),
-  };
-
-  // 1. Play sweet chime sound & vibrate
+// Play notification arrival (sweet chime sound & vibrate)
+export function playNotificationArrival() {
   playLoveChime();
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
     try {
       navigator.vibrate([120, 80, 150]);
     } catch {}
   }
+}
 
-  // 2. Dispatch custom event for in-app floating toast
+// Display received notification on the recipient's screen
+export function displayReceivedNotification(payload: LoveNotificationPayload) {
+  if (typeof window === 'undefined') return;
+
+  // 1. Play sweet chime sound & vibrate
+  playNotificationArrival();
+
+  // 2. Dispatch event for in-app floating toast
   window.dispatchEvent(
     new CustomEvent('baytna_love_notification', {
-      detail: fullPayload,
+      detail: payload,
     })
   );
 
@@ -146,24 +144,27 @@ export function triggerLoveNotification(payload: LoveNotificationPayload) {
   try {
     const raw = localStorage.getItem('baytna_love_history') || '[]';
     const history: LoveNotificationPayload[] = JSON.parse(raw);
-    history.unshift(fullPayload);
-    localStorage.setItem('baytna_love_history', JSON.stringify(history.slice(0, 50)));
+    if (!history.some(h => h.id === payload.id)) {
+      history.unshift(payload);
+      localStorage.setItem('baytna_love_history', JSON.stringify(history.slice(0, 50)));
+    }
   } catch {}
 
   // 4. Trigger Real Native Device Notification (if allowed)
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
+      const avatarIcon = payload.fromUserId === 'fady' ? '/avatars/fady.png' : '/avatars/rahma.png';
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: 'SHOW_NOTIFICATION',
-          title: fullPayload.title,
-          body: fullPayload.body,
-          icon: '/icons/icon-192.png',
+          title: payload.title,
+          body: payload.body,
+          icon: avatarIcon,
         });
       } else {
-        new Notification(fullPayload.title, {
-          body: fullPayload.body,
-          icon: '/icons/icon-192.png',
+        new Notification(payload.title, {
+          body: payload.body,
+          icon: avatarIcon,
           badge: '/icons/favicon-64.png',
         });
       }
@@ -171,4 +172,42 @@ export function triggerLoveNotification(payload: LoveNotificationPayload) {
       console.warn('Native notification trigger failed:', e);
     }
   }
+}
+
+// Send partner notification across devices (sent from one user to the other)
+export async function sendPartnerNotification(payload: LoveNotificationPayload) {
+  if (typeof window === 'undefined') return;
+
+  const toUserId = payload.toUserId || (payload.fromUserId === 'fady' ? 'rahma' : 'fady');
+  const fullPayload = {
+    ...payload,
+    toUserId,
+  };
+
+  // Dispatch confirmation on sender's device: "تم إرسال إشعار لـ رحمة / فادي"
+  const partnerName = toUserId === 'fady' ? 'فادي' : 'رحمة';
+  window.dispatchEvent(
+    new CustomEvent('baytna_notification_sent', {
+      detail: {
+        partnerName,
+        title: fullPayload.title,
+      },
+    })
+  );
+
+  // Send to server to deliver to partner
+  try {
+    await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fullPayload),
+    });
+  } catch (err) {
+    console.warn('Failed to send partner notification to server:', err);
+  }
+}
+
+// Main trigger function: Sends notification to partner
+export function triggerLoveNotification(payload: LoveNotificationPayload) {
+  sendPartnerNotification(payload);
 }

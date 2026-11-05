@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useUser } from '@/context/UserContext';
 import { formatArabicDate, formatCurrency, getGreetingByTime } from '@/lib/date-utils';
+import { triggerLoveNotification } from '@/lib/love-notifications';
 import { 
   UtensilsCrossed, 
   ShoppingCart, 
@@ -79,15 +80,38 @@ export default function HomeDashboard() {
   // Fast toggle prayer directly from dashboard
   const handleTogglePrayer = async (field: string, currentVal: boolean) => {
     try {
+      const newVal = !currentVal;
       // Optimistic update
       setData((prev: any) => ({
         ...prev,
         prayerRecord: {
           ...prev.prayerRecord,
-          [field]: !currentVal,
+          [field]: newVal,
         },
-        totalPoints: !currentVal ? prev.totalPoints + 10 : prev.totalPoints,
+        totalPoints: newVal ? prev.totalPoints + 10 : prev.totalPoints,
       }));
+
+      // Send love notification to partner when a prayer is completed
+      if (newVal) {
+        const prayerNames: Record<string, string> = {
+          fajr: 'صلاة الفجر',
+          dhuhr: 'صلاة الظهر',
+          asr: 'صلاة العصر',
+          maghrib: 'صلاة المغرب',
+          isha: 'صلاة العشاء',
+        };
+        const isFady = currentUser.id === 'fady';
+        triggerLoveNotification({
+          type: 'PRAYER_COMPLETED',
+          fromUserId: isFady ? 'fady' : 'rahma',
+          toUserId: isFady ? 'rahma' : 'fady',
+          title: isFady ? 'دعوة حلوة ليكي من فادي 🤲❤️' : 'دعوة من قلب رحمة لـ فادي 🤲✨',
+          body: isFady
+            ? `فادي صلى ${prayerNames[field] || 'الصلاة'} ودعالكم ربنا يديم حبكم وبركة بيتكم يا ست الكل 🌸`
+            : `رحمة صلت ${prayerNames[field] || 'الصلاة'} ودعتلك ربنا يفتحها في وشك ويحفظك ليها يا سندي يا غالي 💕`,
+          emoji: '🤲',
+        });
+      }
 
       await fetch('/api/prayers', {
         method: 'POST',
@@ -95,7 +119,7 @@ export default function HomeDashboard() {
         body: JSON.stringify({
           userId: currentUser.id,
           field,
-          value: !currentVal,
+          value: newVal,
         }),
       });
     } catch (e) {

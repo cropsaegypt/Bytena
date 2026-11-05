@@ -11,6 +11,13 @@ export interface ChatResponse {
     type: 'ADD_SHOPPING' | 'ADD_RECIPE' | 'ADD_EXPENSE' | 'ADD_WORKOUT' | 'REMIND_WATER';
     payload: any;
   };
+  bridgeNotification?: {
+    fromUserId: string;
+    toUserId: string;
+    title: string;
+    body: string;
+    emoji?: string;
+  };
 }
 
 export interface InvoiceParsedResult {
@@ -63,78 +70,153 @@ export interface AIServiceInterface {
 // 1. Local Heuristic Engine (Fallback & Offline)
 export class LocalHeuristicAIService implements AIServiceInterface {
   async chatWithOmMahmoud(userMessage: string, context?: any): Promise<ChatResponse> {
-    const lower = userMessage.toLowerCase();
+    const raw = userMessage.trim();
+    const lower = raw.toLowerCase();
     const isFady = context?.userId === 'fady' || lower.includes('فادي');
     const greetingName = isFady ? 'يا فادي يا بني يا حبيب قلبي' : 'يا ست الكل يا رحمة يا سكرة';
     const partnerName = isFady ? 'رحمة' : 'فادي';
 
-    // 1. Greetings & Pleasantries
-    if (
-      lower.includes('ازيك') ||
-      lower.includes('عاملة ايه') ||
-      lower.includes('صباح') ||
-      lower.includes('مساء') ||
-      lower.includes('سلام') ||
-      lower.includes('أهلا') ||
-      lower.includes('اهلا') ||
-      lower.includes('هاي') ||
-      lower.includes('الو') ||
-      lower.includes('مين معايا') ||
-      lower.includes('يا ام محمود') ||
-      lower.includes('يا أم محمود')
-    ) {
-      return {
-        message: `يا صباح الفل والياسمين والرضا ${greetingName}! أنا أم محمود، عايشة معاكم في بيتنا عشان أفرش لكم الدنيا راحة وروقان. قولي أساعدك في إيه النهارده؟ أكل، تنظيف، طلبات ناقصة، ولا ندردش شوية؟ ❤️`,
-      };
-    }
+    // 1. BRIDGE INTENT: Fady asking Om Mahmoud to tell Rahma something
+    const isBridgeToRahma = isFady && (
+      lower.includes('قولي لرحمة') || lower.includes('قولي لـ رحمة') ||
+      lower.includes('بلغي رحمة') || lower.includes('وصي رحمة') ||
+      lower.includes('قوليلها') || lower.includes('نفسي في') ||
+      lower.includes('نفسي أكل') || lower.includes('نفسي اكل') ||
+      lower.includes('عايز رحمة')
+    );
 
-    // 2. Love / Thanks / Compliments
-    if (lower.includes('بحبك') || lower.includes('شكرا') || lower.includes('تسلمي') || lower.includes('تسلم') || lower.includes('حبيبتي') || lower.includes('يا عسل')) {
-      return {
-        message: `الله يسعد قلبك ويجبر بخاطرك ${greetingName}! ده أنا اللي محظوظة بيك أنت و${partnerName}، ربنا يديم المحبة والبركة في بيتنا ويفضل عامر دايماً بالخير والضحكة الحلوة ❤️`,
-      };
-    }
+    if (isBridgeToRahma) {
+      let cleanContent = raw
+        .replace(/^(قولي\s*ل*رحمة|بلغي\s*رحمة|وصي\s*رحمة|قوليلها|يا\s*أم\s*محمود\s*قولي\s*ل*رحمة)/gi, '')
+        .trim();
+      if (!cleanContent || cleanContent.length < 2) {
+        cleanContent = raw;
+      }
 
-    // 3. Food / Cooking
-    if (lower.includes('أكل') || lower.includes('اكل') || lower.includes('غدا') || lower.includes('وجبة') || lower.includes('طبخ') || lower.includes('مطبخ') || lower.includes('عشا') || lower.includes('فطار')) {
       return {
-        message: `يا صباح السعادة ${greetingName}! إيه رأيك نعمل مكرونة بالبشاميل بلدي أو صينية فراخ مشوية بالبطاطس والليمون؟ أكلة سهلة ولذيذة وكلكم بتحبوها، والمكونات تقريباً كلها عندنا في التلاجة 🍲`,
-        suggestedAction: {
-          type: 'ADD_RECIPE',
-          payload: { title: 'صينية دجاج مشوي بالبطاطس', category: 'LUNCH' },
+        message: `من عينيا الاتنين يا فادي يا بني يا حبيب قلبي! بلغت ست البنات رحمة حالا ووصلتلها رغبتك بكل حب ورقة.. وقولتلها: "${cleanContent}". متقلقش خالص يا بني، كل اللي نفسك فيه هيكون جاهز وهتبطبطك وتفرح قلبك! ❤️👵🏼`,
+        bridgeNotification: {
+          fromUserId: 'fady',
+          toUserId: 'rahma',
+          title: 'رسالة من أم محمود: فادي بيوصيكي ❤️👵🏼',
+          body: `يا رحمة يا ست البنات وقمر بيتنا، فادي حبيبك وصاني أقولك: "${cleanContent}". ريحي بالك ومتشيليش هم يا غالية 💕`,
+          emoji: '👵🏼',
         },
       };
     }
 
-    // 4. Shopping / Needs
-    if (lower.includes('ناقص') || lower.includes('شراء') || lower.includes('سوبرماركت') || lower.includes('طلبات') || lower.includes('اشتري')) {
+    // 2. BRIDGE INTENT: Rahma asking Om Mahmoud to tell Fady something
+    const isBridgeToFady = !isFady && (
+      lower.includes('قولي لفادي') || lower.includes('قولي لـ فادي') ||
+      lower.includes('بلغي فادي') || lower.includes('وصي فادي') ||
+      lower.includes('قوليله') || lower.includes('عايزة فادي')
+    );
+
+    if (isBridgeToFady) {
+      let cleanContent = raw
+        .replace(/^(قولي\s*ل*فادي|بلغي\s*فادي|وصي\s*فادي|قوليله|يا\s*أم\s*محمود\s*قولي\s*ل*فادي)/gi, '')
+        .trim();
+      if (!cleanContent || cleanContent.length < 2) {
+        cleanContent = raw;
+      }
+
       return {
-        message: `بص ${isFady ? 'يا فادي يا بني' : 'يا حبيبتي يا رحمة'}، مسجلة عندي في طلبات البيت اللبن الحليب واللحم المفروم ومسحوق الغسيل والموز. تحب نكتب حاجة تانية ناقصة نزودها في القائمة دلوقتي؟ 🛒`,
-        suggestedAction: {
-          type: 'ADD_SHOPPING',
-          payload: { name: 'لبن حليب طبيعي', category: 'GROCERIES', quantity: 2, unit: 'لتر' },
+        message: `حاضر يا ست الكل يا رحمة يا بنتي من عينيا الاتنين! بلغت فادي حبيبك وسندك فوراً وقولتله: "${cleanContent}". متشيليش أي هم خالص يا قمر بيتنا، وهو مروح هيعمل اللي قولتيه بالظبط! 💕👵🏼`,
+        bridgeNotification: {
+          fromUserId: 'rahma',
+          toUserId: 'fady',
+          title: 'رسالة من أم محمود: رحمة بتوصيك ❤️👵🏼',
+          body: `يا فادي يا بني يا سندي، رحمة حبيبتك وصتني أقولك: "${cleanContent}". متتأخرش على ست البنات 💕`,
+          emoji: '👵🏼',
         },
       };
     }
 
-    // 5. Chores / Cleaning
-    if (lower.includes('تنظيف') || lower.includes('غسيل') || lower.includes('مواعين') || lower.includes('ترتيب') || lower.includes('شغل البيت')) {
+    // 3. Real Shopping & Needs Inspection
+    if (lower.includes('ناقص') || lower.includes('شراء') || lower.includes('سوبرماركت') || lower.includes('طلبات') || lower.includes('اشتري') || lower.includes('اجيب ايه')) {
+      const pendingItems = context?.shoppingItems || [];
+      if (pendingItems.length > 0) {
+        const names = pendingItems.slice(0, 4).map((i: any) => `${i.name} (${i.needBuyQty || i.quantity || 1} ${i.unit || 'قطعة'})`).join('، ');
+        const extraCount = pendingItems.length - 4;
+        return {
+          message: `بص ${isFady ? 'يا فادي يا بني' : 'يا حبيبتي يا رحمة'}، دخلت بصيتلك في قائمة النواقص في البيت، ولقيت مسجل عندنا: ${names}${extraCount > 0 ? ` وغيرهم كمان ${extraCount} طلبات` : ''}. ${isFady ? 'تحب تجيبهم وأنت مروح ولا نزود حاجة تانية؟ 🛒' : 'تحبي نزود حاجة تانية في القائمة تفكر فادي بيها؟ 🛒'}`,
+          suggestedAction: {
+            type: 'ADD_SHOPPING',
+            payload: { name: 'طلب جديد للبيت', category: 'GROCERIES', quantity: 1, unit: 'قطعة' },
+          },
+        };
+      } else {
+        return {
+          message: `ما شاء الله تبارك الله ${isFady ? 'يا فادي يا بني' : 'يا رحمة يا بنتي'}! دورتلك في قائمة الطلبات ولقيت البيت عامر والتلاجة مليانة ومفيش أي نواقص مسجلة حالياً! لو في بالك أي حاجة من السوبرماركت قولي وأنا هسجلهالك فوراً في القائمة ✨`,
+        };
+      }
+    }
+
+    // 4. Real Food / Cooking / Kitchen Inspection
+    if (lower.includes('أكل') || lower.includes('اكل') || lower.includes('غدا') || lower.includes('وجبة') || lower.includes('طبخ') || lower.includes('مطبخ') || lower.includes('عشا') || lower.includes('فطار') || lower.includes('نعمل ايه')) {
+      const todayPlans = context?.mealPlans || [];
+      const recipes = context?.recipes || [];
+
+      if (todayPlans.length > 0) {
+        const todayMeal = todayPlans[0];
+        const mealTitle = todayMeal.recipe?.title || todayMeal.customName || 'وجبة بيتنا الشهية';
+        return {
+          message: `يا صباح السعادة ${greetingName}! بصيتلك في جدول مطبخنا النهارده ولقيت مسجل وجبة: **${mealTitle}** 🍲! أكلة جميلة وتفتح النفس، تحبوا نعملها ولا في بالكم حاجة تانية أحلى؟ ❤️`,
+        };
+      } else if (recipes.length > 0) {
+        const recipeTitles = recipes.slice(0, 3).map((r: any) => r.title).join('، أو ');
+        return {
+          message: `بصيتلك في كتاب وصفات مطبخنا ${greetingName}، ولقيت عندنا وصفات حلوة مسجلينها زي: **${recipeTitles}**! إيه رأيك نختار واحدة منهم ونعملها النهارده في روقان؟ 🍲`,
+        };
+      } else {
+        return {
+          message: `يا صباح الهنا ${greetingName}! كتاب المطبخ لسه فاضي وجديد، إيه رأيك نعمل مكرونة بالبشاميل بلدي أصلية، أو صينية فراخ مشوية بالبطاطس والليمون؟ أكلة مصرية أصيلة وكلكم بتحبوها وسهلة جداً! قولي لو تحب أسجلهالك في المطبخ فوراً 🍲`,
+          suggestedAction: {
+            type: 'ADD_RECIPE',
+            payload: { title: 'مكرونة بالبشاميل بلدي أصلية', category: 'LUNCH' },
+          },
+        };
+      }
+    }
+
+    // 5. Real Finance & Budget Inspection
+    if (lower.includes('فلوس') || lower.includes('مصاريف') || lower.includes('ميزانية') || lower.includes('صرفنا') || lower.includes('فاضل كام') || lower.includes('توفير') || lower.includes('حساب')) {
+      const totalSpent = context?.totalSpent || 0;
+      const monthlyBudget = context?.monthlyBudget || 16000;
+      const remainingBudget = context?.remainingBudget !== undefined ? context.remainingBudget : Math.max(0, monthlyBudget - totalSpent);
+
       return {
-        message: `على مهلك خالص، البيت مش هيطير! 15 دقيقة لمّ خفيف للصالة وتلميع الطاولات وغسالة الأطباق تخلص المواعين، والبيت هينور بروقان ومن غير أي فرهدة أو مجهود زيادة 🧹✨`,
+        message: `تعال نحسبها بالقرش والبركة ${isFady ? 'يا فادي يا بني' : 'يا رحمة يا بنتي'}! إحنا محددين ميزانية الشهر **${monthlyBudget.toLocaleString('ar-EG')} جنيه**، وصرفنا لحد دلوقتي **${totalSpent.toLocaleString('ar-EG')} جنيه**، فالمتبقي معانا بأمان تام هو **${remainingBudget.toLocaleString('ar-EG')} جنيه**! القرش فيه بركة ومصاريف بيتنا متسجلة أول بأول وتحت السيطرة تماماً الحمد لله 💰✨`,
       };
     }
 
-    // 6. Fatigue / Stress
-    if (lower.includes('تعبان') || lower.includes('مرهق') || lower.includes('كسل') || lower.includes('ارتاح') || lower.includes('زهقان') || lower.includes('صداع')) {
-      return {
-        message: `سلامتك ألف سلامة من التعب والهم ${greetingName}! سيب كل حاجة من إيدك دلوقتي، واعمل ليمون دافي أو فنجان ينسون واقعد ريّح ضهرك شوية.. صحتك وراحة بالك أهم من كل حاجة في الدنيا ❤️`,
-      };
+    // 6. Real Prayers & Dhikr Inspection
+    if (lower.includes('صلاة') || lower.includes('صلوات') || lower.includes('فجر') || lower.includes('ظهر') || lower.includes('عصر') || lower.includes('مغرب') || lower.includes('عشاء') || lower.includes('أذكار') || lower.includes('قرآن')) {
+      const prayer = context?.prayers;
+      const streak = context?.streakDays || 1;
+      const completed: string[] = [];
+      if (prayer?.fajr) completed.push('الفجر');
+      if (prayer?.dhuhr) completed.push('الظهر');
+      if (prayer?.asr) completed.push('العصر');
+      if (prayer?.maghrib) completed.push('المغرب');
+      if (prayer?.isha) completed.push('العشاء');
+
+      if (completed.length > 0) {
+        return {
+          message: `ما شاء الله تبارك الله ${greetingName}! مسجل عندي لصلواتك النهارده إنك صليت: (${completed.join('، ')}). وبقالك **${streak} أيام متتالية** محافظ على التزامك ونور صلاتك في بيتنا! ربنا يتقبل منك ويديم البركة والسكينة في قلوبكم 🤲🌿`,
+        };
+      } else {
+        return {
+          message: `يا صباح البركة والرضا ${greetingName}! مسجل عندي صلوات اليوم جاهزة للتعليم. متنساش تصلي الفجر والظهر وتكسب نقاط البركة لنفسك ولشريكك! الصلاة نور بيتنا وسكينته 🤲✨`,
+        };
+      }
     }
 
-    // 7. Water
-    if (lower.includes('مية') || lower.includes('عطشان') || lower.includes('شرب')) {
+    // 7. Real Water & Hydration Inspection
+    if (lower.includes('مية') || lower.includes('عطشان') || lower.includes('شرب') || lower.includes('ترطيب')) {
+      const waterMl = context?.todayWaterTotal || 0;
       return {
-        message: `جدع يا قمر! متنساش تشرب كوباية المية الكبيرة دي، الترطيب مهم جداً لنضارتك وصحتك ويديك طاقة طول اليوم 💧`,
+        message: `جدع يا قمر! شربت النهارده **${waterMl} مل** من هدف المية. يلا قوم املى كوباية مية كبيرة واشربها دلوقتي على مهلك عشان نضارتك وصحتك وتركيزك يا غالي 💧`,
         suggestedAction: {
           type: 'REMIND_WATER',
           payload: { amountMl: 300 },
@@ -142,16 +224,48 @@ export class LocalHeuristicAIService implements AIServiceInterface {
       };
     }
 
-    // 8. Finance / Money
-    if (lower.includes('فلوس') || lower.includes('مصاريف') || lower.includes('ميزانية') || lower.includes('صرفنا') || lower.includes('توفير')) {
+    // 8. Chores / Cleaning
+    if (lower.includes('تنظيف') || lower.includes('غسيل') || lower.includes('مواعين') || lower.includes('ترتيب') || lower.includes('شغل البيت')) {
       return {
-        message: `كل قرش بيتحط في بيتنا فيه بركة إن شاء الله! إحنا مسجلين ميزانيتنا ومصروفاتنا أول بأول في صفحة 'ميزانيتنا' وكل الأمور تحت السيطرة وفي أمان تام 💰`,
+        message: `على مهلك خالص ${greetingName}، البيت مش هيطير ومحدش بيجري ورانا! 15 دقيقة لمّ خفيف للصالة وتلميع الطاولات وغسالة الأطباق تخلص المواعين، والبيت هينور بروقان ومن غير أي فرهدة أو مجهود زيادة 🧹✨`,
       };
     }
 
-    // Default warm Egyptian reply
+    // 9. Fatigue / Stress / Venting (Personalized)
+    if (lower.includes('تعبان') || lower.includes('مرهق') || lower.includes('كسل') || lower.includes('ارتاح') || lower.includes('زهقان') || lower.includes('صداع')) {
+      if (isFady) {
+        return {
+          message: `سلامة قلبك وضهرك يا فادي يا بني من تعب الشغل واليوم! سيب كل حاجة وخد نَفَس عميق وريّح نص ساعة.. ست البنات رحمة مجهزة البيت بحب، وكل تعبك عشان بيتك في ميزان حسناتك ومقدر جداً يا سندي، وربنا يديمك نعمة ليها ولينا كلنا ❤️`,
+        };
+      } else {
+        return {
+          message: `سلامتك يا بنتي ألف سلامة! إرمي كل حاجة من إيدك، البيت مش هيطير.. ادخلي خدي دش دافي واشربي كوباية ليمون بالنعناع وريحي ضهرك، وفادي حبيبك مقدر تعبك جداً وأنا هقوله يجيب عشا معاه وهو جاي وميعطلش روقانك أبداً يا ست الكل 💕`,
+        };
+      }
+    }
+
+    // 10. Greetings & Pleasantries
+    if (
+      lower.includes('ازيك') || lower.includes('عاملة ايه') || lower.includes('صباح') ||
+      lower.includes('مساء') || lower.includes('سلام') || lower.includes('أهلا') ||
+      lower.includes('اهلا') || lower.includes('هاي') || lower.includes('الو') ||
+      lower.includes('يا ام محمود') || lower.includes('يا أم محمود')
+    ) {
+      return {
+        message: `يا صباح الفل والياسمين والرضا ${greetingName}! أنا أم محمود، عايشة معاكم في بيتنا ومتابعة كل تفصيلة عشان أفرش لكم الدنيا راحة وروقان. قولي أساعدك في إيه النهارده؟ أكل، تنظيف، طلبات ناقصة، أو حابب توصي ${partnerName} بحاجة وأنا أبلغهالك فوراً؟ ❤️`,
+      };
+    }
+
+    // 11. Love / Thanks / Compliments
+    if (lower.includes('بحبك') || lower.includes('شكرا') || lower.includes('تسلمي') || lower.includes('تسلم') || lower.includes('حبيبتي') || lower.includes('يا عسل')) {
+      return {
+        message: `الله يسعد قلبك ويجبر بخاطرك ${greetingName}! ده أنا اللي محظوظة بيك أنت و${partnerName}، ربنا يديم المحبة والبركة في بيتنا ويفضل عامر دايماً بالخير والضحكة والروقان ❤️`,
+      };
+    }
+
+    // Default intelligent warm Egyptian reply
     return {
-      message: `من عينيا الاتنين ${greetingName}! أنا معاك خطوة بخطوة عشان بيتنا يفضل دايمًا رايق ومنظم وفيه أحلى بركة. تحب ننظم طلبات البيت، نختار غدا النهارده، ولا نراجع المصاريف؟ ❤️`,
+      message: `من عينيا الاتنين ${greetingName}! أنا متابعة كل حاجة في بيتنا: المطبخ، النواقص، المصاريف، وصلواتنا.. قولي طلبك بالظبط وتحب أساعدك في إيه دلوقتي، أو لو حابب توصي ${partnerName} بحاجة وأنا أبلغهالك فوراً؟ ❤️`,
     };
   }
 
@@ -452,7 +566,32 @@ export class GeminiAIService implements AIServiceInterface {
       );
       const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
       const text = result.response.text();
-      return { message: text };
+
+      // Check if user is asking Om Mahmoud to tell their partner
+      let bridgeNotification = undefined;
+      const lower = userMessage.toLowerCase();
+      const isFady = context?.userId === 'fady' || lower.includes('فادي');
+      if (isFady && (lower.includes('قولي لرحمة') || lower.includes('بلغي رحمة') || lower.includes('وصي رحمة') || lower.includes('قوليلها') || lower.includes('نفسي في') || lower.includes('نفسي أكل') || lower.includes('نفسي اكل'))) {
+        const cleanContent = userMessage.replace(/^(قولي\s*ل*رحمة|بلغي\s*رحمة|وصي\s*رحمة|قوليلها|يا\s*أم\s*محمود\s*قولي\s*ل*رحمة)/gi, '').trim();
+        bridgeNotification = {
+          fromUserId: 'fady',
+          toUserId: 'rahma',
+          title: 'رسالة من أم محمود: فادي بيوصيكي ❤️👵🏼',
+          body: `يا رحمة يا ست البنات وقمر بيتنا، فادي حبيبك وصاني أقولك: "${cleanContent || userMessage}". ريحي بالك ومتشيليش هم يا غالية 💕`,
+          emoji: '👵🏼',
+        };
+      } else if (!isFady && (lower.includes('قولي لفادي') || lower.includes('بلغي فادي') || lower.includes('وصي فادي') || lower.includes('قوليله'))) {
+        const cleanContent = userMessage.replace(/^(قولي\s*ل*فادي|بلغي\s*فادي|وصي\s*فادي|قوليله|يا\s*أم\s*محمود\s*قولي\s*ل*فادي)/gi, '').trim();
+        bridgeNotification = {
+          fromUserId: 'rahma',
+          toUserId: 'fady',
+          title: 'رسالة من أم محمود: رحمة بتوصيك ❤️👵🏼',
+          body: `يا فادي يا بني يا سندي، رحمة حبيبتك وصتني أقولك: "${cleanContent || userMessage}". متتأخرش على ست البنات 💕`,
+          emoji: '👵🏼',
+        };
+      }
+
+      return { message: text, bridgeNotification };
     } catch (error) {
       console.warn('Gemini chat fallback to local:', error);
       return new LocalHeuristicAIService().chatWithOmMahmoud(userMessage, context);

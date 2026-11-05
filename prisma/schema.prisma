@@ -308,3 +308,15 @@ model AIChatMessage {
   household Household @relation(fields: [householdId], references: [id])
   user      User?     @relation(fields: [userId], references: [id])
 }
+
+model PartnerNotification {
+  id         String   @id @default(cuid())
+  fromUserId String   // "fady" or "rahma"
+  toUserId   String   // "rahma" or "fady"
+  type       String   // "PRAYER_COMPLETED", "COOKING_STARTED", "SHOPPING_DONE", "LOVE_NOTE", "HEALTH_CARE"
+  title      String
+  body       String
+  emoji      String?  @default("❤️")
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
