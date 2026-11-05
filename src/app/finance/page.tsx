@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
+import FinanceShoppingTabs from '@/components/Navigation/FinanceShoppingTabs';
 import { formatArabicDate, formatCurrency } from '@/lib/date-utils';
 import { 
   Wallet, 
@@ -273,6 +274,8 @@ export default function FinancePage() {
 
   return (
     <div className="space-y-4 pb-12 animate-fadeIn">
+      {/* Segmented Switcher for Shopping & Finance */}
+      <FinanceShoppingTabs />
       
       {/* Header */}
       <div className="flex items-center justify-between">

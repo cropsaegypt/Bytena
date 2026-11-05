@@ -50,7 +50,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate for pages and static assets
+  // Native Device Notifications Handler
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, body, icon } = event.data;
+    self.registration.showNotification(title || 'بيتنا ❤️', {
+      body: body || 'إشعار حب جديد من بيتنا 💕',
+      icon: icon || '/icons/icon-192.png',
+      badge: '/icons/favicon-64.png',
+      vibrate: [150, 80, 200, 80, 150],
+      dir: 'rtl',
+      lang: 'ar',
+      data: { url: '/' },
+    });
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
+  );
+});
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)

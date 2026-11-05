@@ -5,6 +5,7 @@ import TopBar from '@/components/Navigation/TopBar';
 import BottomNav from '@/components/Navigation/BottomNav';
 import QuickActionModal from '@/components/Modals/QuickActionModal';
 import PWAInstaller from '@/components/PWA/PWAInstaller';
+import LoveNotificationToast from '@/components/Notifications/LoveNotificationToast';
 
 export const metadata: Metadata = {
   title: 'بيتنا | BAYTNA ❤️ - فادي ورحمة',
@@ -47,6 +48,7 @@ export default function RootLayout({
           <div className="w-full max-w-md md:max-w-xl lg:max-w-2xl mx-auto min-h-screen flex flex-col bg-white shadow-xl shadow-rose-950/5 relative">
             <TopBar />
             <PWAInstaller />
+            <LoveNotificationToast />
             
             {/* Scrollable Content Area */}
             <main className="flex-1 pb-safe pt-2 px-3.5 sm:px-4">

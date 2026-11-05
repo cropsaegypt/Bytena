@@ -1,15 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { FileText, Heart, LogOut } from 'lucide-react';
+import SendLoveModal from '@/components/Modals/SendLoveModal';
 
 export default function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, switchUser } = useUser();
+  const [isLoveModalOpen, setIsLoveModalOpen] = useState(false);
 
   const isLoginPage = pathname === '/login';
 
@@ -68,6 +70,15 @@ export default function TopBar() {
               </button>
             </div>
 
+            {/* Love Pulse Button */}
+            <button
+              onClick={() => setIsLoveModalOpen(true)}
+              title="إرسال نبضة حب فورية ❤️"
+              className="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-500 via-pink-500 to-brand-500 text-white flex items-center justify-center shadow-md shadow-rose-500/25 hover:scale-105 active:scale-95 transition-all border border-white/40"
+            >
+              <Heart className="w-4 h-4 fill-white text-white animate-pulse" />
+            </button>
+
             {/* Weekly Report Shortcut */}
             <Link
               href="/reports"
@@ -89,6 +100,11 @@ export default function TopBar() {
         )}
 
       </div>
+
+      <SendLoveModal
+        isOpen={isLoveModalOpen}
+        onClose={() => setIsLoveModalOpen(false)}
+      />
     </header>
   );
 }

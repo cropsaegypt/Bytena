@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
+import { triggerLoveNotification } from '@/lib/love-notifications';
 import { 
   Moon, 
   Award, 
@@ -92,6 +93,28 @@ export default function PrayersAndRewardsPage() {
     const newVal = typeof currentVal === 'boolean' ? !currentVal : currentVal + 1;
     
     setPrayerRecord((prev: any) => ({ ...prev, [field]: newVal }));
+
+    // Send loving prayer notification when a prayer is completed
+    if (newVal === true && ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].includes(field)) {
+      const prayerNames: Record<string, string> = {
+        fajr: 'صلاة الفجر',
+        dhuhr: 'صلاة الظهر',
+        asr: 'صلاة العصر',
+        maghrib: 'صلاة المغرب',
+        isha: 'صلاة العشاء',
+      };
+      const isFady = currentUser.id === 'fady';
+      triggerLoveNotification({
+        type: 'PRAYER_COMPLETED',
+        fromUserId: isFady ? 'fady' : 'rahma',
+        toUserId: isFady ? 'rahma' : 'fady',
+        title: isFady ? 'دعوة حلوة ليكي من فادي 🤲❤️' : 'دعوة من قلب رحمة لـ فادي 🤲✨',
+        body: isFady
+          ? `فادي صلى ${prayerNames[field]} ودعالكم ربنا يديم حبكم وبركة بيتكم يا ست الكل 🌸`
+          : `رحمة صلت ${prayerNames[field]} ودعتلك ربنا يفتحها في وشك ويحفظك ليها يا سندي يا غالي 💕`,
+        emoji: '🤲',
+      });
+    }
 
     try {
       await fetch('/api/prayers', {

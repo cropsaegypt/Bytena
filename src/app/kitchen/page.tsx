@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
+import { triggerLoveNotification } from '@/lib/love-notifications';
 import { 
   UtensilsCrossed, 
   Calendar, 
@@ -473,14 +474,34 @@ export default function KitchenPage() {
                       )}
                     </div>
 
-                    {plan.recipe && (
-                      <button
-                        onClick={() => setSelectedRecipe(plan.recipe)}
-                        className="text-xs text-brand-600 font-bold hover:underline"
-                      >
-                        عرض الوصفة
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isToday && (
+                        <button
+                          onClick={() => {
+                            triggerLoveNotification({
+                              type: 'COOKING_STARTED',
+                              fromUserId: 'rahma',
+                              toUserId: 'fady',
+                              title: 'غداء بحب من إيد رحمة 👩🏻‍🍳❤️',
+                              body: `رحمة بدأت تجهزلك ${plan.recipe?.title || plan.customName || 'الغداء'} بحب.. متتأخرش عليها يا فادي 💕`,
+                            });
+                          }}
+                          className="text-[11px] bg-rose-50 hover:bg-rose-100 text-brand-700 px-2.5 py-1 rounded-xl font-black border border-rose-200/80 shadow-sm transition-transform active:scale-95 flex items-center gap-1"
+                          title="إرسال إشعار لفادي إنك بدأتي تطبخي"
+                        >
+                          <ChefHat className="w-3.5 h-3.5 text-brand-600" />
+                          <span>بدأت أطبخ يا فادي ❤️</span>
+                        </button>
+                      )}
+                      {plan.recipe && (
+                        <button
+                          onClick={() => setSelectedRecipe(plan.recipe)}
+                          className="text-xs text-brand-600 font-bold hover:underline"
+                        >
+                          عرض الوصفة
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

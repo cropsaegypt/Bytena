@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
+import FinanceShoppingTabs from '@/components/Navigation/FinanceShoppingTabs';
+import { triggerLoveNotification } from '@/lib/love-notifications';
 import { 
   ShoppingCart, 
   Plus, 
@@ -106,6 +108,22 @@ export default function ShoppingPage() {
         prev.map((item) => (item.id === id ? { ...item, isPurchased: !currentStatus } : item))
       );
 
+      // Trigger love notification when item is purchased
+      if (!currentStatus) {
+        const itemObj = items.find((i) => i.id === id);
+        const isFady = currentUser.id === 'fady';
+        triggerLoveNotification({
+          type: 'SHOPPING_DONE',
+          fromUserId: isFady ? 'fady' : 'rahma',
+          toUserId: isFady ? 'rahma' : 'fady',
+          title: isFady ? 'فادي جاب طلبات من البيت 🛍️❤️' : 'رحمة جهزت غرض من الطلبات ✨',
+          body: isFady
+            ? `فادي اشترى (${itemObj?.name || 'طلب من النواقص'}) وبيقولك تسلم إيدك مقدماً يا قمر بيتنا 💕`
+            : `رحمة اشترت (${itemObj?.name || 'غرض للبيت'}) وبتجهز البيت بحب ❤️`,
+          emoji: '🛍️',
+        });
+      }
+
       await fetch('/api/shopping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -186,6 +204,8 @@ export default function ShoppingPage() {
 
   return (
     <div className="space-y-4 pb-12 animate-fadeIn">
+      {/* Segmented Switcher for Shopping & Finance */}
+      <FinanceShoppingTabs />
       
       {/* Header */}
       <div className="flex items-center justify-between">

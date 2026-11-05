@@ -7,8 +7,7 @@ import { useUser } from '@/context/UserContext';
 import { 
   Home, 
   UtensilsCrossed, 
-  ShoppingCart, 
-  Wallet, 
+  WalletCards, 
   Activity, 
   Sparkles, 
   Plus,
@@ -24,8 +23,12 @@ export default function BottomNav() {
   const navItems = [
     { label: 'الرئيسية', href: '/', icon: Home },
     { label: 'مطبخنا', href: '/kitchen', icon: UtensilsCrossed },
-    { label: 'طلباتنا', href: '/shopping', icon: ShoppingCart },
-    { label: 'ميزانيتنا', href: '/finance', icon: Wallet },
+    { 
+      label: 'مصاريف وطلبات', 
+      href: '/shopping', 
+      icon: WalletCards, 
+      matchHrefs: ['/shopping', '/finance'] 
+    },
     { label: 'صحتنا', href: '/health', icon: Activity },
     { label: 'صلاتنا', href: '/prayers', icon: Moon },
     { label: 'أم محمود', href: '/assistant', icon: Sparkles },
@@ -54,24 +57,26 @@ export default function BottomNav() {
         <div className="max-w-md mx-auto flex items-center justify-around">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = item.matchHrefs
+              ? item.matchHrefs.includes(pathname)
+              : pathname === item.href;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
+                className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
                   isActive
                     ? 'text-brand-600 font-extrabold scale-105'
                     : 'text-neutral-400 hover:text-neutral-600 font-medium'
                 }`}
               >
-                <div className={`p-1 rounded-xl transition-colors ${isActive ? 'bg-rose-50' : ''}`}>
+                <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-rose-50' : ''}`}>
                   <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
                 </div>
-                <span className="text-[10px] mt-0.5 tracking-tight">{item.label}</span>
+                <span className="text-[10px] mt-0.5 tracking-tight font-bold">{item.label}</span>
                 {isActive && (
-                  <span className="w-1 h-1 bg-brand-600 rounded-full absolute -bottom-0.5"></span>
+                  <span className="w-1.5 h-1.5 bg-brand-600 rounded-full absolute -bottom-0.5"></span>
                 )}
               </Link>
             );
