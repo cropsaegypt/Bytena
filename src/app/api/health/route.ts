@@ -127,12 +127,57 @@ export async function POST(request: Request) {
         },
       });
 
-      await prisma.healthProfile.update({
+      await prisma.healthProfile.upsert({
         where: { userId },
-        data: { currentWeightKg: parsedWeight },
+        update: { currentWeightKg: parsedWeight },
+        create: {
+          userId,
+          currentWeightKg: parsedWeight,
+          targetWeightKg: parsedWeight - 5,
+          heightCm: 175,
+          isSharedWithPartner: true,
+        },
       });
 
       return NextResponse.json({ success: true, log });
+    }
+
+    // 1.5 Update Health Profile (Height, Initial Weight, Target Weight)
+    if (action === 'update_profile') {
+      const { heightCm, currentWeightKg, targetWeightKg, dailyWaterTargetMl } = body;
+      const parsedCurrent = currentWeightKg ? parseFloat(currentWeightKg) : undefined;
+      const parsedTarget = targetWeightKg ? parseFloat(targetWeightKg) : undefined;
+      const parsedHeight = heightCm ? parseFloat(heightCm) : undefined;
+
+      const profile = await prisma.healthProfile.upsert({
+        where: { userId },
+        update: {
+          ...(parsedCurrent && { currentWeightKg: parsedCurrent }),
+          ...(parsedTarget && { targetWeightKg: parsedTarget }),
+          ...(parsedHeight && { heightCm: parsedHeight }),
+          ...(dailyWaterTargetMl && { dailyWaterTargetMl: parseInt(dailyWaterTargetMl) }),
+        },
+        create: {
+          userId,
+          currentWeightKg: parsedCurrent || 70,
+          targetWeightKg: parsedTarget || 65,
+          heightCm: parsedHeight || 170,
+          dailyWaterTargetMl: dailyWaterTargetMl ? parseInt(dailyWaterTargetMl) : 3000,
+          isSharedWithPartner: true,
+        },
+      });
+
+      if (parsedCurrent) {
+        await prisma.weightLog.create({
+          data: {
+            userId,
+            weightKg: parsedCurrent,
+            notes: 'تسجيل القياس',
+          },
+        });
+      }
+
+      return NextResponse.json({ success: true, profile });
     }
 
     // 2. Delete weight log

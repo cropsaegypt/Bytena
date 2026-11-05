@@ -5,6 +5,12 @@ import { useUser } from '@/context/UserContext';
 import FinanceShoppingTabs from '@/components/Navigation/FinanceShoppingTabs';
 import { triggerLoveNotification } from '@/lib/love-notifications';
 import { 
+  getLocalShoppingItems, 
+  saveLocalShoppingItems, 
+  mergeShoppingItems, 
+  trackDeletedShoppingId 
+} from '@/lib/client-sync';
+import { 
   ShoppingCart, 
   Plus, 
   Mic, 
@@ -50,8 +56,9 @@ export default function ShoppingPage() {
     try {
       const res = await fetch('/api/shopping');
       const json = await res.json();
-      if (json.success) {
-        setItems(json.items || []);
+      if (json.success && json.items) {
+        const merged = mergeShoppingItems(json.items);
+        setItems(merged);
       }
     } catch (e) {
       console.error(e);
@@ -61,6 +68,10 @@ export default function ShoppingPage() {
   };
 
   useEffect(() => {
+    const local = getLocalShoppingItems();
+    if (local && local.length > 0) {
+      setItems(local);
+    }
     fetchItems();
   }, []);
 
@@ -119,7 +130,11 @@ export default function ShoppingPage() {
 
       const json = await res.json();
       if (json.success) {
-        setItems((prev) => [json.item, ...prev]);
+        setItems((prev) => {
+          const updated = [json.item, ...prev];
+          saveLocalShoppingItems(updated);
+          return updated;
+        });
         setIsAddOpen(false);
         setName('');
         setQuantity('1');
@@ -164,9 +179,11 @@ export default function ShoppingPage() {
 
       const json = await res.json();
       if (json.success) {
-        setItems((prev) =>
-          prev.map((it) => (it.id === editingItem.id ? json.item : it))
-        );
+        setItems((prev) => {
+          const updated = prev.map((it) => (it.id === editingItem.id ? json.item : it));
+          saveLocalShoppingItems(updated);
+          return updated;
+        });
         setEditingItem(null);
       }
     } catch (e) {
@@ -179,12 +196,14 @@ export default function ShoppingPage() {
     const targetItem = items.find((i) => i.id === itemId);
     const newStatus = !currentStatus;
 
-    // Optimistic Update
-    setItems((prev) =>
-      prev.map((item) =>
+    // Optimistic Update & Local Persistence
+    setItems((prev) => {
+      const updated = prev.map((item) =>
         item.id === itemId ? { ...item, isPurchased: newStatus } : item
-      )
-    );
+      );
+      saveLocalShoppingItems(updated);
+      return updated;
+    });
 
     // If marked as bought, notify partner!
     if (newStatus && targetItem) {
@@ -217,7 +236,12 @@ export default function ShoppingPage() {
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm('هل تريد حذف هذا الغرض من القائمة؟')) return;
 
-    setItems((prev) => prev.filter((i) => i.id !== itemId));
+    trackDeletedShoppingId(itemId);
+    setItems((prev) => {
+      const updated = prev.filter((i) => i.id !== itemId);
+      saveLocalShoppingItems(updated);
+      return updated;
+    });
 
     try {
       await fetch('/api/shopping', {

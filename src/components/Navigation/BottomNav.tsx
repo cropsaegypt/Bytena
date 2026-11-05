@@ -31,7 +31,7 @@ export default function BottomNav() {
     },
     { label: 'صحتنا', href: '/health', icon: Activity },
     { label: 'صلاتنا', href: '/prayers', icon: Moon },
-    { label: 'أم محمود', href: '/assistant', icon: Sparkles },
+    { label: 'زوزو 🌸', href: '/assistant', icon: Sparkles },
   ];
 
   if (pathname === '/login') return null;

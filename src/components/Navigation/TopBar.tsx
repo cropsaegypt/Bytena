@@ -43,33 +43,13 @@ export default function TopBar() {
           </div>
         </Link>
 
-        {/* Center/Left side: User Switcher & Actions */}
+        {/* Center/Left side: User Profile & Actions */}
         {!isLoginPage && (
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* User Switcher Pill */}
-            <div className="bg-neutral-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl flex items-center gap-0.5 sm:gap-1 border border-neutral-200/60 shadow-inner">
-              <button
-                onClick={() => switchUser('fady')}
-                className={`flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
-                  currentUser.id === 'fady'
-                    ? 'bg-white text-brand-600 shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-700'
-                }`}
-              >
-                <span>👨🏻‍💻</span>
-                <span>فادي</span>
-              </button>
-              <button
-                onClick={() => switchUser('rahma')}
-                className={`flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
-                  currentUser.id === 'rahma'
-                    ? 'bg-white text-brand-600 shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-700'
-                }`}
-              >
-                <span>👩🏻‍🍳</span>
-                <span>رحمة</span>
-              </button>
+            {/* Active User Pill (No Switcher - Single Logged-in Account) */}
+            <div className="bg-rose-50 border border-rose-200/80 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl flex items-center gap-1.5 text-xs font-black text-brand-700 shadow-sm">
+              <span className="text-sm">{currentUser.avatar}</span>
+              <span>{currentUser.displayName}</span>
             </div>
 
             {/* Love Pulse Button */}

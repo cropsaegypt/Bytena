@@ -113,12 +113,12 @@ export async function GET(request: Request) {
     });
     const totalWaterToday = waterLogs.reduce((sum, item) => sum + (item.amountMl || 0), 0);
 
-    // 8. Coach / Om Mahmoud Advice
+    // 8. Coach / Zozo Advice
     const advice =
       requestedUserId === 'rahma'
         ? {
-            speaker: 'أم محمود',
-            avatar: '👵🏼',
+            speaker: 'زوزو',
+            avatar: '🌸',
             quote: 'صباح الفل يا ست البنات! يومك جميل وهادي بإذن الله، متشيليش هم أي حاجة ومتنسيش تشربي مية وتاخدي بريك ليكي ❤️',
           }
         : {

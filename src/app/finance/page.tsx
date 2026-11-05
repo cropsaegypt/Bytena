@@ -4,6 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
 import FinanceShoppingTabs from '@/components/Navigation/FinanceShoppingTabs';
 import { formatArabicDate, formatCurrency } from '@/lib/date-utils';
+import {
+  getLocalExpenses,
+  saveLocalExpenses,
+  mergeExpenses,
+  getLocalBudgetTarget,
+  saveLocalBudgetTarget,
+  trackDeletedExpenseId,
+} from '@/lib/client-sync';
 import { 
   Wallet, 
   Plus, 
@@ -118,6 +126,19 @@ export default function FinancePage() {
       const resJson = await res.json();
       if (resJson.success) {
         showNotification('تم تحديث المصروف بنجاح ✨');
+        if (resJson.expense) {
+          setData((prev: any) => {
+            const updated = (prev.expenses || []).map((e: any) => e.id === editingExpense.id ? resJson.expense : e);
+            saveLocalExpenses(updated);
+            const spent = updated.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+            return {
+              ...prev,
+              expenses: updated,
+              totalSpent: spent,
+              remaining: Math.max(0, prev.budget - spent),
+            };
+          });
+        }
         setEditingExpense(null);
         fetchFinance();
       }
@@ -129,7 +150,29 @@ export default function FinancePage() {
   const handleDeleteExpense = async (id: string) => {
     if (!confirm('هل تريد حذف هذا المصروف؟')) return;
 
+    trackDeletedExpenseId(id);
+    setData((prev: any) => {
+      const updated = (prev.expenses || []).filter((e: any) => e.id !== id);
+      saveLocalExpenses(updated);
+      const spent = updated.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+      return {
+        ...prev,
+        expenses: updated,
+        totalSpent: spent,
+        remaining: Math.max(0, prev.budget - spent),
+      };
+    });
+
     try {
+      const num = parseFloat(newBudgetTarget);
+      if (!isNaN(num)) {
+        saveLocalBudgetTarget(num);
+        setData((prev: any) => ({
+          ...prev,
+          budget: num,
+          remaining: Math.max(0, num - (prev.totalSpent || 0)),
+        }));
+      }
       await fetch('/api/finance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -150,8 +193,18 @@ export default function FinancePage() {
       const res = await fetch('/api/finance');
       const json = await res.json();
       if (json.success) {
-        setData(json);
-        setNewBudgetTarget(String(json.budget));
+        const mergedExpenses = mergeExpenses(json.expenses || []);
+        const budget = json.budget || getLocalBudgetTarget();
+        saveLocalBudgetTarget(budget);
+        const totalSpent = mergedExpenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+        setData({
+          ...json,
+          budget,
+          expenses: mergedExpenses,
+          totalSpent,
+          remaining: Math.max(0, budget - totalSpent),
+        });
+        setNewBudgetTarget(String(budget));
       }
     } catch (e) {
       console.error(e);
@@ -161,6 +214,19 @@ export default function FinancePage() {
   };
 
   useEffect(() => {
+    const localExp = getLocalExpenses();
+    const localBudget = getLocalBudgetTarget();
+    if (localExp && localExp.length > 0) {
+      const spent = localExp.reduce((sum, item) => sum + (item.amount || 0), 0);
+      setData((prev: any) => ({
+        ...prev,
+        budget: localBudget,
+        expenses: localExp,
+        totalSpent: spent,
+        remaining: Math.max(0, localBudget - spent),
+      }));
+      setNewBudgetTarget(String(localBudget));
+    }
     fetchFinance();
   }, []);
 
@@ -191,6 +257,19 @@ export default function FinancePage() {
       const resJson = await res.json();
       if (resJson.success) {
         showNotification('تم تسجيل المصروف بنجاح 💸');
+        if (resJson.expense) {
+          setData((prev: any) => {
+            const updated = [resJson.expense, ...(prev.expenses || [])];
+            saveLocalExpenses(updated);
+            const spent = updated.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+            return {
+              ...prev,
+              expenses: updated,
+              totalSpent: spent,
+              remaining: Math.max(0, prev.budget - spent),
+            };
+          });
+        }
         setIsAddExpenseOpen(false);
         setTitle('');
         setAmount('');
@@ -277,6 +356,15 @@ export default function FinancePage() {
     if (!newBudgetTarget) return;
 
     try {
+      const num = parseFloat(newBudgetTarget);
+      if (!isNaN(num)) {
+        saveLocalBudgetTarget(num);
+        setData((prev: any) => ({
+          ...prev,
+          budget: num,
+          remaining: Math.max(0, num - (prev.totalSpent || 0)),
+        }));
+      }
       await fetch('/api/finance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

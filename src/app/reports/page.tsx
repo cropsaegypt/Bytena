@@ -79,7 +79,7 @@ export default function ReportsPage() {
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-3xl p-5 shadow-sm space-y-2">
         <div className="flex items-center gap-2">
           <span className="text-2xl">👵🏼</span>
-          <h2 className="text-xs font-black text-amber-900">رأي وتشجيع أم محمود</h2>
+          <h2 className="text-xs font-black text-amber-900">رأي وتشجيع زوزو 🌸</h2>
         </div>
         <p className="text-xs text-amber-900/90 leading-relaxed font-medium">
           "{data.omMahmoudVerdict}"

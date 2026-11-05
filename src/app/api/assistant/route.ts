@@ -16,6 +16,7 @@ export async function GET(request: Request) {
       where: {
         householdId: 'baytna-main',
         persona,
+        userId,
       },
       orderBy: { createdAt: 'asc' },
       take: 50,
@@ -31,8 +32,8 @@ export async function GET(request: Request) {
         : persona === 'family_assistant'
         ? 'أهلاً بكما في المساعد العائلي لبيتنا! اسألني عن أي حاجة في الميزانية، النواقص، أو وجبات الأسبوع 🏡'
         : userId === 'fady'
-        ? 'يا صباح الفل والروقان يا فادي يا بني يا حبيب قلبي! أنا أم محمود، عايشة معاكم في بيتنا عشان أفرش لكم الدنيا راحة وسعادة. قولي أساعدك في إيه؟ أكل، طلبات ناقصة، أو حابب توصي ست البنات رحمة بحاجة وأنا أبلغهالك فوراً؟ ❤️👵🏼'
-        : 'يا صباح الفل والياسمين يا ست الكل يا رحمة يا سكرة! أنا أم محمود، عايشة معاكم في بيتنا عشان أفرش لكم الدنيا راحة وروقان. متشيليش هم المطبخ ولا أي حاجة، قوليلي أساعدك في إيه النهارده؟ ❤️👵🏼';
+        ? 'يا صباح الفل والروقان يا فادي يا بني يا حبيب قلبي! أنا زوزو، عايشة معاكم في بيتنا عشان أفرش لكم الدنيا راحة وسعادة. قولي أساعدك في إيه؟ أكل، طلبات ناقصة، أو حابب توصي ست البنات رحمة بحاجة وأنا أبلغهالك فوراً؟ ❤️🌸'
+        : 'يا صباح الفل والياسمين يا ست الكل يا رحمة يا سكرة! أنا زوزو، عايشة معاكم في بيتنا عشان أفرش لكم الدنيا راحة وروقان. متشيليش هم المطبخ ولا أي حاجة، قوليلي أساعدك في إيه النهارده؟ ❤️🌸';
 
     return NextResponse.json({
       success: true,
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
           id: 'w1',
           persona: 'om_mahmoud',
           role: 'assistant',
-          content: 'يا صباح الفل والرضا يا حبايب قلبي! أنا أم محمود، معاكم خطوة بخطوة في بيتنا الدافئ ❤️',
+          content: 'يا صباح الفل والرضا يا حبايب قلبي! أنا زوزو، معاكم خطوة بخطوة في بيتنا الدافئ ❤️🌸',
           createdAt: new Date().toISOString(),
         },
       ],
@@ -183,11 +184,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Save and return AI assistant message
+    // 5. Save and return AI assistant message (strictly associated with current user)
     let savedAI = {
       id: String(Date.now()),
       householdId: 'baytna-main',
-      userId: null,
+      userId: currentUserId,
       persona: persona || 'om_mahmoud',
       role: 'assistant',
       content: result.message,
@@ -199,7 +200,7 @@ export async function POST(request: Request) {
       savedAI = await prisma.aIChatMessage.create({
         data: {
           householdId: 'baytna-main',
-          userId: null,
+          userId: currentUserId,
           persona: persona || 'om_mahmoud',
           role: 'assistant',
           content: result.message,

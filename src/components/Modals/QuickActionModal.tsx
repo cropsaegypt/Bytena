@@ -240,7 +240,7 @@ export default function QuickActionModal() {
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <p>أم محمود</p>
+                <p>زوزو 🌸</p>
                 <span className="text-[10px] text-purple-700/80 font-normal">دردشة وروقان</span>
               </div>
             </button>

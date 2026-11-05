@@ -41,12 +41,30 @@ export default function AssistantPage() {
     }
   }, []);
 
+  const chatCacheKey = `baytna_chat_${persona}_${currentUser.id}`;
+
   const fetchMessages = async () => {
+    // 1. Instant local cache first
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(chatCacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+          }
+        }
+      } catch {}
+    }
+
     try {
       const res = await fetch(`/api/assistant?persona=${persona}&userId=${currentUser.id}`);
       const json = await res.json();
-      if (json.success) {
-        setMessages(json.messages || []);
+      if (json.success && json.messages) {
+        setMessages(json.messages);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(chatCacheKey, JSON.stringify(json.messages));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -55,7 +73,7 @@ export default function AssistantPage() {
 
   useEffect(() => {
     fetchMessages();
-  }, [persona]);
+  }, [persona, currentUser.id]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -90,12 +108,17 @@ export default function AssistantPage() {
       });
       const json = await res.json();
       if (json && json.reply && json.reply.content) {
-        setMessages((prev) => [...prev, json.reply]);
+        setMessages((prev) => {
+          const updated = [...prev, json.reply];
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(chatCacheKey, JSON.stringify(updated));
+          }
+          return updated;
+        });
       } else {
         // Guaranteed fallback reply
-        setMessages((prev) => [
-          ...prev,
-          {
+        setMessages((prev) => {
+          const fallbackMsg = {
             id: String(Date.now() + 1),
             role: 'assistant',
             content:
@@ -103,14 +126,18 @@ export default function AssistantPage() {
                 ? 'عاش يا بطل! أنا معاك وسامعك كويس، قولي تحب نركز على إيه في تمرين النهارده؟ 💪'
                 : `يا صباح الفل والسعادة ${currentUser.id === 'fady' ? 'يا فادي يا بني' : 'يا ست الكل يا رحمة'}! أنا معاك وسامعاك في كل وقت في بيتنا، قولي أساعدك في إيه؟ ❤️`,
             createdAt: new Date().toISOString(),
-          },
-        ]);
+          };
+          const updated = [...prev, fallbackMsg];
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(chatCacheKey, JSON.stringify(updated));
+          }
+          return updated;
+        });
       }
     } catch (e) {
       // Guaranteed response even if offline/error
-      setMessages((prev) => [
-        ...prev,
-        {
+      setMessages((prev) => {
+        const errorReply = {
           id: String(Date.now() + 1),
           role: 'assistant',
           content:
@@ -118,8 +145,13 @@ export default function AssistantPage() {
               ? 'عاش يا وحش! أنا معاك وسامعك، تمرينك والتزامك بالبروتين هو الأهم 💪'
               : `يا عيوني ${currentUser.id === 'fady' ? 'يا فادي يا بني' : 'يا ست الكل'}! أنا جنبك ومعاكي ودايماً سامعاكي، قولي تحب نعمل إيه في البيت؟ ❤️`,
           createdAt: new Date().toISOString(),
-        },
-      ]);
+        };
+        const updated = [...prev, errorReply];
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(chatCacheKey, JSON.stringify(updated));
+        }
+        return updated;
+      });
     } finally {
       setLoading(false);
     }
@@ -162,11 +194,11 @@ export default function AssistantPage() {
 
   const personaMeta = {
     om_mahmoud: {
-      name: 'أم محمود – ست البيت ومديرة الروقان 👵🏼',
+      name: 'زوزو – ست البيت ومديرة الروقان 🌸',
       description: currentUser.id === 'fady' 
-        ? 'أم محمود معاك يا فادي.. تقدر تسألها عن أي حاجة في البيت أو تطلب منها توصل لرحمة أي أكلة نفسك فيها أو رسالة حب ❤️'
+        ? 'زوزو معاك يا فادي.. تقدر تسألها عن أي حاجة في البيت أو تطلب منها توصل لرحمة أي أكلة نفسك فيها أو رسالة حب ❤️'
         : 'مصرية أصيلة وحنونة، بتساعدك في ترتيب البيت، الوجبات، التوفير، والهدوء التام بدون أي ضغط ❤️',
-      avatar: '👵🏼',
+      avatar: '🌸',
       quickSuggestions: currentUser.id === 'fady'
         ? [
             'قولي لرحمة نفسي في مكرونة بشاميل من إيدها ❤️',
@@ -175,7 +207,7 @@ export default function AssistantPage() {
             'قولي لرحمة ترتاح وتريح نفسها وأنا هجيب العشا',
           ]
         : [
-            'إيه رأيك نعمل غدا إيه النهارده يا أم محمود؟',
+            'إيه رأيك نعمل غدا إيه النهارده يا زوزو؟',
             'إيه أهم الطلبات والنواقص اللي محتاجين نشتريها؟',
             'صرفنا كام من الميزانية الشهر ده والمتبقي كام؟',
             'حاسة بإرهاق ومحتاجة بريك وروقان',
@@ -218,7 +250,7 @@ export default function AssistantPage() {
             persona === 'om_mahmoud' ? 'bg-white text-purple-700 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          <span className="truncate block">أم محمود 👵🏼</span>
+          <span className="truncate block">زوزو 🌸</span>
         </button>
         <button
           onClick={() => setPersona('fady_coach')}
@@ -342,7 +374,7 @@ export default function AssistantPage() {
 
         <input
           type="text"
-          placeholder={`اكتب رسالتك لـ ${persona === 'om_mahmoud' ? 'أم محمود' : persona === 'fady_coach' ? 'الكوتش' : 'مساعد البيت'}...`}
+          placeholder={`اكتب رسالتك لـ ${persona === 'om_mahmoud' ? 'زوزو' : persona === 'fady_coach' ? 'الكوتش' : 'مساعد البيت'}...`}
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           className="flex-1 px-4 py-3 rounded-2xl border border-neutral-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm"

@@ -4,6 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
 import { formatArabicDate } from '@/lib/date-utils';
 import PinKeypadModal from '@/components/Modals/PinKeypadModal';
+import {
+  getLocalHealthData,
+  saveLocalHealthData,
+  mergeHealthData,
+} from '@/lib/client-sync';
 import { 
   Activity, 
   Lock, 
@@ -22,19 +27,22 @@ import {
   Sparkles,
   Key,
   X,
-  Trash2
+  Trash2,
+  Settings,
+  Heart,
+  Check
 } from 'lucide-react';
 
 const DEFAULT_HEALTH_DATA = {
   profile: {
-    heightCm: 182,
-    currentWeightKg: 85.0,
-    targetWeightKg: 78.0,
-    dailyCalorieTarget: 2350,
-    dailyWaterTargetMl: 3200,
-    macrosProteinG: 155,
-    macrosCarbsG: 230,
-    macrosFatG: 65,
+    heightCm: 175,
+    currentWeightKg: null,
+    targetWeightKg: null,
+    dailyCalorieTarget: 2200,
+    dailyWaterTargetMl: 3000,
+    macrosProteinG: 140,
+    macrosCarbsG: 210,
+    macrosFatG: 60,
     isSharedWithPartner: true,
     user: { displayName: 'فادي', avatar: '👨🏻‍💻' },
   },
@@ -59,6 +67,12 @@ export default function HealthPage() {
   // Form states
   const [newWeight, setNewWeight] = useState('');
   const [weightNotes, setWeightNotes] = useState('');
+
+  // Edit Profile / Start From Scratch state
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editCurrentWeight, setEditCurrentWeight] = useState('');
+  const [editTargetWeight, setEditTargetWeight] = useState('');
+  const [editHeight, setEditHeight] = useState('');
 
   const [workoutTitle, setWorkoutTitle] = useState('');
   const [workoutCategory, setWorkoutCategory] = useState(currentUser.id === 'fady' ? 'GYM' : 'HOME');
@@ -121,11 +135,41 @@ export default function HealthPage() {
   };
 
   const fetchHealthData = async () => {
+    // 1. Instant local storage cache recovery
+    const local = getLocalHealthData(currentUser.id);
+    if (local && (local.currentWeightKg || (local.weightLogs && local.weightLogs.length > 0))) {
+      setData((prev: any) => ({
+        ...prev,
+        profile: {
+          ...(prev?.profile || {}),
+          currentWeightKg: local.currentWeightKg ?? prev?.profile?.currentWeightKg,
+          targetWeightKg: local.targetWeightKg ?? prev?.profile?.targetWeightKg,
+          heightCm: local.heightCm ?? prev?.profile?.heightCm,
+        },
+        weightLogs: local.weightLogs || [],
+        workoutLogs: local.workoutLogs || [],
+        totalWaterToday: Math.max(local.totalWaterToday || 0, prev?.totalWaterToday || 0),
+      }));
+    }
+
     try {
       const res = await fetch(`/api/health?userId=${currentUser.id}&requesterId=${currentUser.id}`);
       const json = await res.json();
       if (json.success) {
-        setData(json);
+        const merged = mergeHealthData(currentUser.id, json);
+        setData((prev: any) => ({
+          ...prev,
+          profile: {
+            ...(json.profile || {}),
+            currentWeightKg: merged.currentWeightKg ?? json.profile?.currentWeightKg,
+            targetWeightKg: merged.targetWeightKg ?? json.profile?.targetWeightKg,
+            heightCm: merged.heightCm ?? json.profile?.heightCm,
+          },
+          weightLogs: merged.weightLogs,
+          workoutLogs: merged.workoutLogs,
+          totalWaterToday: merged.totalWaterToday,
+          medicalRecords: json.medicalRecords || [],
+        }));
       }
     } catch (e) {
       console.error(e);
@@ -142,18 +186,84 @@ export default function HealthPage() {
 
   const showNotification = (msg: string) => {
     setNotification(msg);
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const curW = parseFloat(editCurrentWeight);
+    const tarW = parseFloat(editTargetWeight);
+    const h = parseFloat(editHeight);
+
+    if (isNaN(curW) && isNaN(tarW) && isNaN(h)) return;
+
+    // Optimistic & local update
+    const updatedProfile = {
+      ...(data?.profile || {}),
+      currentWeightKg: !isNaN(curW) ? curW : data?.profile?.currentWeightKg,
+      targetWeightKg: !isNaN(tarW) ? tarW : data?.profile?.targetWeightKg,
+      heightCm: !isNaN(h) ? h : data?.profile?.heightCm,
+    };
+
+    let updatedWeightLogs = data?.weightLogs || [];
+    if (!isNaN(curW)) {
+      const newLog = {
+        id: 'w_' + Date.now(),
+        weightKg: curW,
+        loggedAt: new Date().toISOString(),
+        notes: 'تسجيل القياس الأولي',
+      };
+      updatedWeightLogs = [newLog, ...updatedWeightLogs];
+    }
+
+    const updatedData = {
+      ...data,
+      profile: updatedProfile,
+      weightLogs: updatedWeightLogs,
+    };
+    setData(updatedData);
+    saveLocalHealthData(currentUser.id, {
+      ...updatedProfile,
+      weightLogs: updatedWeightLogs,
+      workoutLogs: data?.workoutLogs || [],
+      totalWaterToday: data?.totalWaterToday || 0,
+    });
+    setIsEditProfileOpen(false);
+    showNotification('تم حفظ قياساتك وأهدافك الصحية بنجاح! 🎯✨');
+
+    try {
+      await fetch('/api/health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_profile',
+          userId: currentUser.id,
+          currentWeightKg: editCurrentWeight,
+          targetWeightKg: editTargetWeight,
+          heightCm: editHeight,
+        }),
+      });
+      fetchHealthData();
+    } catch {}
   };
 
   const handleDeleteWeight = async (id: string) => {
     if (!confirm('هل تريد حذف قياس الوزن هذا؟')) return;
+
+    setData((prev: any) => {
+      const updated = (prev?.weightLogs || []).filter((w: any) => w.id !== id);
+      const local = getLocalHealthData(currentUser.id);
+      saveLocalHealthData(currentUser.id, { ...local, weightLogs: updated });
+      return { ...prev, weightLogs: updated };
+    });
+    showNotification('تم حذف قياس الوزن بنجاح 🗑️');
+
     try {
       await fetch('/api/health', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete_weight', id, userId: currentUser.id }),
       });
-      showNotification('تم حذف قياس الوزن بنجاح 🗑️');
       fetchHealthData();
     } catch {}
   };
@@ -187,10 +297,16 @@ export default function HealthPage() {
   // Water Drink Action
   const handleDrinkWater = async (amount: number = 250) => {
     try {
-      setData((prev: any) => ({
-        ...prev,
-        totalWaterToday: (prev.totalWaterToday || 0) + amount,
-      }));
+      setData((prev: any) => {
+        const nextTotal = (prev.totalWaterToday || 0) + amount;
+        const local = getLocalHealthData(currentUser.id);
+        saveLocalHealthData(currentUser.id, { ...local, totalWaterToday: nextTotal });
+        return {
+          ...prev,
+          totalWaterToday: nextTotal,
+        };
+      });
+      showNotification(`تم تسجيل ${amount} مل ماء بنجاح! 💧`);
 
       await fetch('/api/health', {
         method: 'POST',
@@ -201,7 +317,6 @@ export default function HealthPage() {
           amountMl: amount,
         }),
       });
-      showNotification(`تم تسجيل ${amount} مل ماء بنجاح! 💧`);
     } catch (e) {
       fetchHealthData();
     }
@@ -211,25 +326,53 @@ export default function HealthPage() {
   const handleLogWeight = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWeight) return;
+    const numericWeight = parseFloat(newWeight);
+    if (isNaN(numericWeight)) return;
+
+    const newLogItem = {
+      id: 'w_' + Date.now(),
+      weightKg: numericWeight,
+      loggedAt: new Date().toISOString(),
+      notes: weightNotes.trim() || undefined,
+    };
+
+    // Optimistic & Local Storage
+    setData((prev: any) => {
+      const updatedLogs = [newLogItem, ...(prev?.weightLogs || [])];
+      const updatedProfile = {
+        ...(prev?.profile || {}),
+        currentWeightKg: numericWeight,
+      };
+      saveLocalHealthData(currentUser.id, {
+        ...updatedProfile,
+        weightLogs: updatedLogs,
+        workoutLogs: prev?.workoutLogs || [],
+        totalWaterToday: prev?.totalWaterToday || 0,
+      });
+      return {
+        ...prev,
+        profile: updatedProfile,
+        weightLogs: updatedLogs,
+      };
+    });
+
+    setIsLogWeightOpen(false);
+    setNewWeight('');
+    setWeightNotes('');
+    showNotification(`تم تسجيل وزنك الجديد (${numericWeight} كجم) بنجاح! ⚖️`);
 
     try {
-      const res = await fetch('/api/health', {
+      await fetch('/api/health', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'log_weight',
           userId: currentUser.id,
-          weightKg: newWeight,
-          notes: weightNotes,
+          weightKg: numericWeight,
+          notes: weightNotes.trim(),
         }),
       });
-      const json = await res.json();
-      if (json.success) {
-        showNotification('تم تسجيل الوزن الجديد بنجاح! ⚖️');
-        setIsLogWeightOpen(false);
-        setNewWeight('');
-        fetchHealthData();
-      }
+      fetchHealthData();
     } catch (e) {
       alert('حدث خطأ');
     }
@@ -427,54 +570,173 @@ export default function HealthPage() {
       )}
 
       {/* Profile Overview Card */}
-      <div className="bg-gradient-to-l from-brand-600 to-rose-500 text-white rounded-3xl p-5 shadow-lg relative overflow-hidden">
+      <div className="bg-gradient-to-l from-brand-600 to-rose-500 text-white rounded-3xl p-5 shadow-lg relative overflow-hidden space-y-3">
         <div className="flex items-start justify-between">
           <div>
             <span className="text-[10px] font-bold text-rose-100 bg-black/15 px-2.5 py-0.5 rounded-full">
-              {currentUser.id === 'fady' ? 'برنامج الجيم وبناء العضلات' : 'برنامج اللياقة المنزلية والتغذية'}
+              {currentUser.id === 'fady' ? 'برنامج الجيم وبناء العضلات 🏋🏻‍♂️' : 'برنامج اللياقة والروقان والتغذية 🌸'}
             </span>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-3xl font-black">{profile.currentWeightKg}</span>
+              <span className="text-3xl font-black">{profile.currentWeightKg || '–'}</span>
               <span className="text-sm font-bold text-rose-100">كجم</span>
             </div>
             <p className="text-[11px] text-rose-100 mt-1">
-              الهدف: <span className="font-extrabold text-white">{profile.targetWeightKg} كجم</span> • الطول: <span className="font-extrabold text-white">{profile.heightCm} سم</span>
+              الهدف: <span className="font-extrabold text-white">{profile.targetWeightKg ? `${profile.targetWeightKg} كجم` : 'لم يحدد'}</span> • الطول: <span className="font-extrabold text-white">{profile.heightCm ? `${profile.heightCm} سم` : 'لم يحدد'}</span>
             </p>
           </div>
 
-          {/* Privacy Sharing Toggle */}
-          <button
-            onClick={handleToggleSharing}
-            className={`px-3 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
-              profile.isSharedWithPartner
-                ? 'bg-emerald-500/80 text-white'
-                : 'bg-white/20 text-white'
-            }`}
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>{profile.isSharedWithPartner ? 'مشارك مع الشريك' : 'خاص تماماً'}</span>
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            {/* Privacy Sharing Toggle */}
+            <button
+              onClick={handleToggleSharing}
+              className={`px-3 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
+                profile.isSharedWithPartner
+                  ? 'bg-emerald-500/80 text-white'
+                  : 'bg-white/20 text-white'
+              }`}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{profile.isSharedWithPartner ? 'مشارك مع الشريك' : 'خاص تماماً'}</span>
+            </button>
+
+            {/* Edit Measurements Button */}
+            <button
+              onClick={() => {
+                setEditCurrentWeight(profile.currentWeightKg ? String(profile.currentWeightKg) : '');
+                setEditTargetWeight(profile.targetWeightKg ? String(profile.targetWeightKg) : '');
+                setEditHeight(profile.heightCm ? String(profile.heightCm) : '');
+                setIsEditProfileOpen(true);
+              }}
+              className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 text-white"
+            >
+              <Settings className="w-3 h-3" />
+              <span>تعديل الأهداف والوزن</span>
+            </button>
+          </div>
         </div>
 
         {/* Nutritional Targets Grid */}
-        <div className="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-white/20 text-center text-xs">
+        <div className="grid grid-cols-4 gap-2 pt-3 border-t border-white/20 text-center text-xs">
           <div>
             <span className="block text-[10px] text-rose-100">السعرات</span>
-            <span className="font-extrabold text-white">{profile.dailyCalorieTarget}</span>
+            <span className="font-extrabold text-white">{profile.dailyCalorieTarget || 2200}</span>
           </div>
           <div>
             <span className="block text-[10px] text-rose-100">البروتين</span>
-            <span className="font-extrabold text-white">{profile.macrosProteinG}g</span>
+            <span className="font-extrabold text-white">{profile.currentWeightKg ? `${Math.round(profile.currentWeightKg * 2)}g` : '–'}</span>
           </div>
           <div>
             <span className="block text-[10px] text-rose-100">الكارب</span>
-            <span className="font-extrabold text-white">{profile.macrosCarbsG}g</span>
+            <span className="font-extrabold text-white">{profile.macrosCarbsG || 210}g</span>
           </div>
           <div>
             <span className="block text-[10px] text-rose-100">الدهون</span>
-            <span className="font-extrabold text-white">{profile.macrosFatG}g</span>
+            <span className="font-extrabold text-white">{profile.macrosFatG || 60}g</span>
           </div>
         </div>
+      </div>
+
+      {/* Start From Scratch Setup Banner if Weight Not Entered Yet */}
+      {!profile.currentWeightKg && (
+        <div className="bg-amber-50 border border-amber-200/80 rounded-3xl p-4 text-center space-y-2 shadow-sm animate-fadeIn">
+          <div className="w-10 h-10 mx-auto rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl">
+            ⚖️
+          </div>
+          <h3 className="text-xs font-black text-amber-900">
+            أهلاً بك يا {currentUser.displayName}! ابدأ رحلتك الصحية من الأول وسجل وزنك
+          </h3>
+          <p className="text-[11px] text-amber-700 max-w-xs mx-auto">
+            اكتب وزنك الحالي والهدف اللي حابب توصله عشان نحسبلك احتياجك اليومي من البروتين والمياه بدقة!
+          </p>
+          <button
+            onClick={() => {
+              setEditCurrentWeight('');
+              setEditTargetWeight('');
+              setEditHeight('175');
+              setIsEditProfileOpen(true);
+            }}
+            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shadow-md shadow-amber-600/20 active:scale-95 transition-all"
+          >
+            سجل وزنك وأهدافك الآن ✨
+          </button>
+        </div>
+      )}
+
+      {/* Dedicated Personalized Health & Nutrition Advice ("نصايح وكدا") */}
+      <div className="bg-white border border-neutral-200/80 rounded-3xl p-4 shadow-sm space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-base">
+            {currentUser.id === 'fady' ? '🏋🏻‍♂️' : '🌸'}
+          </div>
+          <div>
+            <h3 className="text-xs font-extrabold text-neutral-800">
+              {currentUser.id === 'fady' ? 'نصايح كوتش اللياقة والتمرين لفادي 💪' : 'نصايح زوزو للصحة والروقان لرحمة 🌸'}
+            </h3>
+            <p className="text-[10px] text-neutral-400">إرشادات مخصصة بناءً على وزنك وأهدافك</p>
+          </div>
+        </div>
+
+        {currentUser.id === 'fady' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-100 space-y-1">
+              <span className="font-black text-brand-600 flex items-center gap-1">🥩 احتياج البروتين</span>
+              <p className="text-neutral-600 leading-relaxed text-[11px]">
+                هدفك اليومي <span className="font-extrabold text-neutral-800">{profile.currentWeightKg ? Math.round(profile.currentWeightKg * 2) : 150} جرام بروتين</span> (2 جرام لكل كجم). وزعهم على: 4 بيضات وشوفان صباحاً، 250جم صدور دجاج في الغداء، وتونة أو جبنة قريش عشاء.
+              </p>
+            </div>
+
+            <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-100 space-y-1">
+              <span className="font-black text-cyan-600 flex items-center gap-1">💧 ترطيب العضلات</span>
+              <p className="text-neutral-600 leading-relaxed text-[11px]">
+                اشرب على الأقل <span className="font-extrabold text-neutral-800">{profile.currentWeightKg ? (profile.currentWeightKg * 0.035).toFixed(1) : '3.0'} لتر مية</span> يومياً. الماء يحافظ على قوة المفاصل ويمنع الشد العضلي أثناء رفع الأوزان الثقيلة.
+              </p>
+            </div>
+
+            <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-100 space-y-1">
+              <span className="font-black text-amber-600 flex items-center gap-1">🏋🏻‍♂️ خطة الجيم والأوزان</span>
+              <p className="text-neutral-600 leading-relaxed text-[11px]">
+                ركز على التكنيك الصحيح في التمارين المركبة (بنش، سكوات، ديدليفت). زيادة تدريجية في الوزن أو التكرارات كل أسبوعين لتحفيز البناء العضلي.
+              </p>
+            </div>
+
+            <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-100 space-y-1">
+              <span className="font-black text-purple-600 flex items-center gap-1">💤 الاستشفاء والنوم</span>
+              <p className="text-neutral-600 leading-relaxed text-[11px]">
+                العضلات تبنى أثناء النوم! احرص على 7 إلى 8 ساعات نوم متواصل في غرفة مظلمة لرفع هرمون النمو وخفض هرمون التوتر.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="p-3 bg-rose-50/60 rounded-2xl border border-rose-100 space-y-1">
+              <span className="font-black text-rose-700 flex items-center gap-1">🥗 توازن الأكل بدون حرمان</span>
+              <p className="text-neutral-600 leading-relaxed text-[11px]">
+                يا سكرة بيتنا، متعمليش دايت حرمان ولا تشيلي هم الميزان! قسمي طبقك: نصه خضار وسلطة ملونة، ربعه بروتين مشبع (فراخ أو بيض أو سمك)، وربعه نشويات مفيدة.
+              </p>
+            </div>
+
+            <div className="p-3 bg-cyan-50/60 rounded-2xl border border-cyan-100 space-y-1">
+              <span className="font-black text-cyan-700 flex items-center gap-1">💧 نضارة البشرة والنشاط</span>
+              <p className="text-neutral-600 leading-relaxed text-[11px]">
+                كوباية مية كل ساعتين ({profile.currentWeightKg ? (profile.currentWeightKg * 0.035).toFixed(1) : '2.5'} لتر يومياً) سر النقاء والطاقة وخفة الحركة بدون أي إرهاق أو صداع.
+              </p>
+            </div>
+
+            <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100 space-y-1">
+              <span className="font-black text-emerald-700 flex items-center gap-1">🚶🏻‍♀️ روقان المشي والحركة</span>
+              <p className="text-neutral-600 leading-relaxed text-[11px]">
+                20 دقيقة مشي خفيف في الهواء أو تمارين استطالة بالبيت بتفرز هرمونات السعادة وتجدد طاقتك وتريح ضهرك وأعصابك تماماً.
+              </p>
+            </div>
+
+            <div className="p-3 bg-purple-50/60 rounded-2xl border border-purple-100 space-y-1">
+              <span className="font-black text-purple-700 flex items-center gap-1">☕ بريك الروقان والدلع</span>
+              <p className="text-neutral-600 leading-relaxed text-[11px]">
+                خدي لنفسك نص ساعة في نص اليوم: مشروب دافئ تحبيه، ريحي ضهرك، وفكري في النعم والبركة اللي في بيتك مع فادي حبيبك ❤️
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Water Tracker Widget */}
@@ -662,6 +924,82 @@ export default function HealthPage() {
           )}
         </div>
       </div>
+
+      {/* MODAL: EDIT MEASUREMENTS & GOALS */}
+      {isEditProfileOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <form
+            onSubmit={handleSaveProfile}
+            className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🎯</span>
+                <h3 className="font-extrabold text-sm text-neutral-800">تعديل قياساتك وأهدافك</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditProfileOpen(false)}
+                className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">الوزن الحالي (كجم)</label>
+              <input
+                type="number"
+                step="0.1"
+                required
+                placeholder="مثال: 80.0"
+                value={editCurrentWeight}
+                onChange={(e) => setEditCurrentWeight(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-base font-black text-center text-brand-600 focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">الوزن المستهدف اللي عايز توصله (كجم)</label>
+              <input
+                type="number"
+                step="0.1"
+                placeholder="مثال: 74.0"
+                value={editTargetWeight}
+                onChange={(e) => setEditTargetWeight(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-base font-black text-center text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">الطول (سم)</label>
+              <input
+                type="number"
+                placeholder="مثال: 178"
+                value={editHeight}
+                onChange={(e) => setEditHeight(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl border border-neutral-200 text-sm font-bold text-center text-neutral-800 focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-xs shadow-md transition-all active:scale-95"
+              >
+                حفظ القياسات ✨
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditProfileOpen(false)}
+                className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl font-bold text-xs"
+              >
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* MODAL: LOG WEIGHT */}
       {isLogWeightOpen && (

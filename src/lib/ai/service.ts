@@ -249,10 +249,10 @@ export class LocalHeuristicAIService implements AIServiceInterface {
       lower.includes('ازيك') || lower.includes('عاملة ايه') || lower.includes('صباح') ||
       lower.includes('مساء') || lower.includes('سلام') || lower.includes('أهلا') ||
       lower.includes('اهلا') || lower.includes('هاي') || lower.includes('الو') ||
-      lower.includes('يا ام محمود') || lower.includes('يا أم محمود')
+      lower.includes('يا زوزو') || lower.includes('زوزو') || lower.includes('يا ام محمود') || lower.includes('يا أم محمود')
     ) {
       return {
-        message: `يا صباح الفل والياسمين والرضا ${greetingName}! أنا أم محمود، عايشة معاكم في بيتنا ومتابعة كل تفصيلة عشان أفرش لكم الدنيا راحة وروقان. قولي أساعدك في إيه النهارده؟ أكل، تنظيف، طلبات ناقصة، أو حابب توصي ${partnerName} بحاجة وأنا أبلغهالك فوراً؟ ❤️`,
+        message: `يا صباح الفل والياسمين والرضا ${greetingName}! أنا زوزو، عايشة معاكم في بيتنا ومتابعة كل تفصيلة عشان أفرش لكم الدنيا راحة وروقان. قولي أساعدك في إيه النهارده؟ أكل، تنظيف، طلبات ناقصة، أو حابب توصي ${partnerName} بحاجة وأنا أبلغهالك فوراً؟ ❤️🌸`,
       };
     }
 
@@ -565,34 +565,32 @@ export class GeminiAIService implements AIServiceInterface {
         `الصلوات اليوم: ${[context?.prayers?.fajr && 'الفجر', context?.prayers?.dhuhr && 'الظهر', context?.prayers?.asr && 'العصر', context?.prayers?.maghrib && 'المغرب', context?.prayers?.isha && 'العشاء'].filter(Boolean).join(' و ') || 'لم تُعلم بعد'}`,
       ].join('\n');
 
-      const systemInstruction = `أنت "أم محمود" - ست البيت المصرية ومديرة الروقان لتطبيق بيتنا (Baytna) لفادي ورحمة.
+      const systemInstruction = `أنتِ "زوزو" - ست البيت المصرية ومديرة الروقان لتطبيق بيتنا (Baytna) لفادي ورحمة.
 شخصيتك:
-- مصرية أصيلة، حنونة ودافئة جداً، خفيفة الظل.
+- مصرية أصيلة، حنونة ودافئة جداً، خفيفة الظل وذكية.
 - مع فادي: تخاطبينه بـ "يا فادي يا بني يا حبيب قلبي" و"يا سندي".
 - مع رحمة: تخاطبينها بـ "يا ست البنات يا رحمة يا سكرة" و"يا قمر بيتنا".
 - لو فادي طلب منك تقولي أو توصي رحمة بأكلة أو حاجة: وافقي بحب وأكدي له إنك بلغتي ست البنات.
-- أجيبي باللهجة المصرية الدافئة باختصار شديد وبذكاء (2-4 أسطر فقط) لتوفير التوكنز.`;
+- أجيبي باللهجة المصرية الدافئة باختصار شديد وبذكاء (2-4 أسطر فقط) لتوفير التوكنز بأقصى درجة.`;
 
-      // Use gemini-1.5-flash-8b (Google's lowest token model)
-      let model;
-      try {
-        model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash-8b',
-          generationConfig: {
-            maxOutputTokens: 250,
-            temperature: 0.7,
-          },
-          systemInstruction,
-        });
-      } catch {
-        model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
-          generationConfig: {
-            maxOutputTokens: 250,
-            temperature: 0.7,
-          },
-          systemInstruction,
-        });
+      // Use gemini-flash-lite-latest (fastest & lowest token model)
+      const candidateModels = ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+      let model: any = null;
+      for (const m of candidateModels) {
+        try {
+          model = genAI.getGenerativeModel({
+            model: m,
+            generationConfig: {
+              maxOutputTokens: 200,
+              temperature: 0.7,
+            },
+            systemInstruction,
+          });
+          if (model) break;
+        } catch {}
+      }
+      if (!model) {
+        model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest', systemInstruction });
       }
 
       const prompt = `بيانات البيت:\n${compactContext}\n\nرسالة ${speakerName}: "${userMessage}"`;
@@ -603,26 +601,26 @@ export class GeminiAIService implements AIServiceInterface {
       const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
       const text = result.response.text();
 
-      // Check if user is asking Om Mahmoud to tell their partner
+      // Check if user is asking Zozo to tell their partner
       let bridgeNotification = undefined;
       const lower = userMessage.toLowerCase();
-      if (isFady && (lower.includes('قولي لرحمة') || lower.includes('بلغي رحمة') || lower.includes('وصي رحمة') || lower.includes('قوليلها') || lower.includes('نفسي في') || lower.includes('نفسي أكل') || lower.includes('نفسي اكل') || lower.includes('عايز رحمة'))) {
-        const cleanContent = userMessage.replace(/^(قولي\s*ل*رحمة|بلغي\s*رحمة|وصي\s*رحمة|قوليلها|يا\s*أم\s*محمود\s*قولي\s*ل*رحمة)/gi, '').trim();
+      if (isFady && (lower.includes('قولي لرحمة') || lower.includes('بلغي رحمة') || lower.includes('وصي رحمة') || lower.includes('قوليلها') || lower.includes('نفسي في') || lower.includes('نفسي أكل') || lower.includes('نفسي اكل') || lower.includes('عايز رحمة') || lower.includes('زوزو قولي'))) {
+        const cleanContent = userMessage.replace(/^(قولي\s*ل*رحمة|بلغي\s*رحمة|وصي\s*رحمة|قوليلها|يا\s*(أم\s*محمود|زوزو)\s*قولي\s*ل*رحمة)/gi, '').trim();
         bridgeNotification = {
           fromUserId: 'fady',
           toUserId: 'rahma',
-          title: 'رسالة من أم محمود: فادي بيوصيكي ❤️👵🏼',
-          body: `يا رحمة يا ست البنات وقمر بيتنا، فادي حبيبك وصاني أقولك: "${cleanContent || userMessage}". ريحي بالك ومتشيليش هم يا غالية 💕`,
-          emoji: '👵🏼',
+          title: 'رسالة من زوزو: فادي بيوصيكي ❤️🌸',
+          body: `يا رحمة يا ست البنات وقمر بيتنا، فادي حبيبك وصاني (أنا زوزو) أقولك: "${cleanContent || userMessage}". ريحي بالك ومتشيليش هم يا غالية 💕`,
+          emoji: '🌸',
         };
-      } else if (!isFady && (lower.includes('قولي لفادي') || lower.includes('بلغي فادي') || lower.includes('وصي فادي') || lower.includes('قوليله') || lower.includes('عايزة فادي'))) {
-        const cleanContent = userMessage.replace(/^(قولي\s*ل*فادي|بلغي\s*فادي|وصي\s*فادي|قوليله|يا\s*أم\s*محمود\s*قولي\s*ل*فادي)/gi, '').trim();
+      } else if (!isFady && (lower.includes('قولي لفادي') || lower.includes('بلغي فادي') || lower.includes('وصي فادي') || lower.includes('قوليله') || lower.includes('عايزة فادي') || lower.includes('زوزو قولي'))) {
+        const cleanContent = userMessage.replace(/^(قولي\s*ل*فادي|بلغي\s*فادي|وصي\s*فادي|قوليله|يا\s*(أم\s*محمود|زوزو)\s*قولي\s*ل*فادي)/gi, '').trim();
         bridgeNotification = {
           fromUserId: 'rahma',
           toUserId: 'fady',
-          title: 'رسالة من أم محمود: رحمة بتوصيك ❤️👵🏼',
-          body: `يا فادي يا بني يا سندي، رحمة حبيبتك وصتني أقولك: "${cleanContent || userMessage}". متتأخرش على ست البنات 💕`,
-          emoji: '👵🏼',
+          title: 'رسالة من زوزو: رحمة بتوصيك ❤️🌸',
+          body: `يا فادي يا بني يا سندي، رحمة حبيبتك وصتني (أنا زوزو) أقولك: "${cleanContent || userMessage}". متتأخرش على ست البنات 💕`,
+          emoji: '🌸',
         };
       }
 
@@ -638,11 +636,12 @@ export class GeminiAIService implements AIServiceInterface {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const genAI = new GoogleGenerativeAI(this.apiKey);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-flash-lite-latest',
+        generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
         systemInstruction: `أنت كوتش اللياقة والتغذية الرياضية الشخصي لفادي ورحمة في تطبيق بيتنا.
 تتحدث بلهجة مصرية رياضية تشجيعية وعلمية ("عاش يا بطل"، "يا وحش"، "فورمة").
 تركز على تمارين المقاومة، أوزان الجيم، حساب السعرات والماكروز (بروتين/كارب/دهون)، ونزول الدهون المستدام.
-لا تقدم نصائح طبية علاجية ولا تشخص أمراضاً. أجب بدقة وعملية.`,
+لا تقدم نصائح طبية علاجية ولا تشخص أمراضاً. أجب باختصار وبدقة وعملية.`,
       });
 
       const prompt = `سؤال المتدرب: "${userMessage}"\nبيانات المتدرب: ${JSON.stringify(userProfile || {})}`;
@@ -661,11 +660,10 @@ export class GeminiAIService implements AIServiceInterface {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const genAI = new GoogleGenerativeAI(this.apiKey);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-flash-lite-latest',
+        generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
         systemInstruction: `أنت المساعد العائلي الذكي لتطبيق بيتنا (Baytna) لفادي ورحمة.
-مهمتك: الإجابة عن كل ما يخص بيانات المنزل بدقة بناءً على البيانات المقدمة لك فقط.
-لا تخترع بيانات لم تحدث، وإذا طُلب منك تعديل مالي أو حذف بيانات اطلب تأكيد المستخدم أولاً.
-تحدث باللغة العربية الواضحة وبلهجة مصرية مهذبة.`,
+مهمتك: الإجابة عن كل ما يخص بيانات المنزل بدقة وبإيجاز.`,
       });
 
       const prompt = `السؤال: "${userMessage}"\nبيانات البيت: ${JSON.stringify(householdData || {})}`;

@@ -42,8 +42,8 @@ const DEFAULT_DASHBOARD_DATA = {
   totalWaterToday: 0,
   todayWorkout: null,
   advice: {
-    speaker: 'أم محمود',
-    avatar: '👵🏼',
+    speaker: 'زوزو',
+    avatar: '🌸',
     quote: 'صباح الفل والياسمين! يومكم جميل وسعيد ومبارك في بيتنا الدافئ يا فادي ويا رحمة ❤️',
   },
 };
@@ -55,12 +55,47 @@ export default function HomeDashboard() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);
 
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const prayerCacheKey = `baytna_prayers_${currentUser.id}_${todayDateStr}`;
+
   const fetchDashboard = async () => {
+    // Immediate local cache check for prayers
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedPrayers = localStorage.getItem(prayerCacheKey);
+        if (cachedPrayers) {
+          const parsed = JSON.parse(cachedPrayers);
+          setData((prev: any) => ({
+            ...prev,
+            prayerRecord: { ...prev.prayerRecord, ...parsed },
+          }));
+        }
+      } catch {}
+    }
+
     try {
       const res = await fetch(`/api/home?userId=${currentUser.id}`);
       const json = await res.json();
       if (json.success && json.data) {
-        setData(json.data);
+        let mergedPrayers = json.data.prayerRecord;
+        if (typeof window !== 'undefined') {
+          const cachedPrayers = localStorage.getItem(prayerCacheKey);
+          if (cachedPrayers) {
+            const parsed = JSON.parse(cachedPrayers);
+            mergedPrayers = {
+              ...mergedPrayers,
+              fajr: mergedPrayers.fajr || parsed.fajr,
+              dhuhr: mergedPrayers.dhuhr || parsed.dhuhr,
+              asr: mergedPrayers.asr || parsed.asr,
+              maghrib: mergedPrayers.maghrib || parsed.maghrib,
+              isha: mergedPrayers.isha || parsed.isha,
+            };
+          }
+        }
+        setData({
+          ...json.data,
+          prayerRecord: mergedPrayers,
+        });
       }
     } catch (err) {
       console.warn('Dashboard background update:', err);
@@ -82,14 +117,20 @@ export default function HomeDashboard() {
     try {
       const newVal = !currentVal;
       // Optimistic update
-      setData((prev: any) => ({
-        ...prev,
-        prayerRecord: {
+      setData((prev: any) => {
+        const updatedPrayers = {
           ...prev.prayerRecord,
           [field]: newVal,
-        },
-        totalPoints: newVal ? prev.totalPoints + 10 : prev.totalPoints,
-      }));
+        };
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(prayerCacheKey, JSON.stringify(updatedPrayers));
+        }
+        return {
+          ...prev,
+          prayerRecord: updatedPrayers,
+          totalPoints: newVal ? prev.totalPoints + 10 : prev.totalPoints,
+        };
+      });
 
       // Send love notification to partner when a prayer is completed
       if (newVal) {

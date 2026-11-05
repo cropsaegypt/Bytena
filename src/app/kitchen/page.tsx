@@ -569,7 +569,7 @@ export default function KitchenPage() {
               <ChefHat className="w-10 h-10 text-brand-500 mx-auto stroke-[1.5]" />
               <h3 className="font-extrabold text-sm text-neutral-800">كتاب المطبخ لسه فاضي 🍲</h3>
               <p className="text-xs text-neutral-400 max-w-xs mx-auto">
-                ابدأوا بإضافة أول أكلة من زرار (+ إضافة وصفة) أو اطلبوا من أم محمود اقتراحات وصفات مصرية شهية!
+                ابدأوا بإضافة أول أكلة من زرار (+ إضافة وصفة) أو اطلبوا من زوزو اقتراحات وصفات مصرية شهية!
               </p>
             </div>
           ) : (
@@ -860,7 +860,7 @@ export default function KitchenPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-1.5">
-                      <h4 className="font-black text-xs text-amber-950">أم محمود والذكاء الاصطناعي</h4>
+                      <h4 className="font-black text-xs text-amber-950">زوزو والذكاء الاصطناعي 🌸</h4>
                       <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-full">
                         مساعد الطبخ الذكي
                       </span>
@@ -887,7 +887,7 @@ export default function KitchenPage() {
                     className="py-2.5 px-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                   >
                     <Sparkles className={`w-3.5 h-3.5 text-amber-200 ${isGeneratingAI ? 'animate-spin' : ''}`} />
-                    <span>{isGeneratingAI ? 'جاري تحضير المقادير...' : 'اكتبيهالي يا أم محمود ✨'}</span>
+                    <span>{isGeneratingAI ? 'جاري تحضير المقادير...' : 'اكتبيهالي يا زوزو ✨'}</span>
                   </button>
 
                   <button
@@ -958,7 +958,7 @@ export default function KitchenPage() {
                       className="text-[10px] text-brand-600 hover:text-brand-800 font-bold flex items-center gap-1"
                     >
                       <Sparkles className="w-3 h-3 text-amber-500" />
-                      <span>اطلب مساعدة أم محمود ✨</span>
+                      <span>اطلب مساعدة زوزو ✨</span>
                     </button>
                   )}
                 </div>
