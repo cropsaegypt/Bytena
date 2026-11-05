@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 :root {
   --background: #fdfaf8;
   --foreground: #1c1917;
@@ -24,12 +28,28 @@
 html {
   scroll-behavior: smooth;
   height: 100%;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   min-height: 100%;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* Prevent image and svg stretching past screen */
+img, svg, video, canvas, audio, iframe, embed, object {
+  display: block;
+  max-width: 100%;
 }
 
 /* Safe areas for iOS and modern Android phones */
@@ -52,7 +72,7 @@ body {
 
 /* Glassmorphism utility */
 .glass-nav {
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }

@@ -231,22 +231,22 @@ export default function PrayersAndRewardsPage() {
       )}
 
       {/* Tab Switcher */}
-      <div className="flex p-1 bg-neutral-100 rounded-2xl border border-neutral-200/70 text-xs font-bold">
+      <div className="flex p-1 bg-neutral-100 rounded-2xl border border-neutral-200/70 text-xs font-bold w-full max-w-full overflow-hidden">
         <button
           onClick={() => setActiveTab('prayers')}
-          className={`flex-1 py-2 rounded-xl transition-all ${
+          className={`flex-1 min-w-0 py-2 px-1 rounded-xl transition-all ${
             activeTab === 'prayers' ? 'bg-white text-indigo-700 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          صلوات وأذكار اليوم 🌙
+          <span className="truncate block">صلوات وأذكار اليوم 🌙</span>
         </button>
         <button
           onClick={() => setActiveTab('rewards')}
-          className={`flex-1 py-2 rounded-xl transition-all ${
+          className={`flex-1 min-w-0 py-2 px-1 rounded-xl transition-all ${
             activeTab === 'rewards' ? 'bg-white text-brand-600 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          كتالوج المكافآت 🎁
+          <span className="truncate block">كتالوج المكافآت 🎁</span>
         </button>
       </div>
 

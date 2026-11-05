@@ -185,30 +185,30 @@ export default function AssistantPage() {
     <div className="flex flex-col h-[calc(100vh-8.5rem)] pb-4 animate-fadeIn">
       
       {/* Persona Switcher Tabs */}
-      <div className="flex p-1 bg-neutral-100 rounded-2xl border border-neutral-200/70 text-xs font-bold shrink-0 mb-3">
+      <div className="flex p-1 bg-neutral-100 rounded-2xl border border-neutral-200/70 text-xs font-bold shrink-0 mb-3 w-full max-w-full overflow-hidden">
         <button
           onClick={() => setPersona('om_mahmoud')}
-          className={`flex-1 py-2 rounded-xl transition-all ${
+          className={`flex-1 min-w-0 py-2 px-1 rounded-xl transition-all ${
             persona === 'om_mahmoud' ? 'bg-white text-purple-700 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          أم محمود 👵🏼
+          <span className="truncate block">أم محمود 👵🏼</span>
         </button>
         <button
           onClick={() => setPersona('fady_coach')}
-          className={`flex-1 py-2 rounded-xl transition-all ${
+          className={`flex-1 min-w-0 py-2 px-1 rounded-xl transition-all ${
             persona === 'fady_coach' ? 'bg-white text-blue-700 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          كوتش اللياقة 🏋🏻‍♂️
+          <span className="truncate block">كوتش اللياقة 🏋🏻‍♂️</span>
         </button>
         <button
           onClick={() => setPersona('family_assistant')}
-          className={`flex-1 py-2 rounded-xl transition-all ${
+          className={`flex-1 min-w-0 py-2 px-1 rounded-xl transition-all ${
             persona === 'family_assistant' ? 'bg-white text-emerald-700 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          مساعد البيت 🏡
+          <span className="truncate block">مساعد البيت 🏡</span>
         </button>
       </div>
 

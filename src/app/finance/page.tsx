@@ -365,7 +365,7 @@ export default function FinancePage() {
             <h3 className="text-xs font-extrabold text-neutral-800">توزيع المصروفات حسب التصنيف</h3>
           </div>
 
-          <div className="h-44 w-full">
+          <div className="h-44 w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie

@@ -382,30 +382,30 @@ export default function KitchenPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex p-1 bg-neutral-100 rounded-2xl border border-neutral-200/70 text-xs font-bold">
+      <div className="flex p-1 bg-neutral-100 rounded-2xl border border-neutral-200/70 text-xs font-bold w-full max-w-full overflow-hidden">
         <button
           onClick={() => setActiveTab('plan')}
-          className={`flex-1 py-2 rounded-xl transition-all ${
+          className={`flex-1 min-w-0 py-2 px-1 rounded-xl transition-all ${
             activeTab === 'plan' ? 'bg-white text-brand-600 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          جدول الوجبات 📅
+          <span className="truncate block">جدول الوجبات 📅</span>
         </button>
         <button
           onClick={() => setActiveTab('recipes')}
-          className={`flex-1 py-2 rounded-xl transition-all ${
+          className={`flex-1 min-w-0 py-2 px-1 rounded-xl transition-all ${
             activeTab === 'recipes' ? 'bg-white text-brand-600 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          وصفاتنا ({recipes.length}) 📖
+          <span className="truncate block">وصفاتنا ({recipes.length}) 📖</span>
         </button>
         <button
           onClick={() => setActiveTab('wishlist')}
-          className={`flex-1 py-2 rounded-xl transition-all relative ${
+          className={`flex-1 min-w-0 py-2 px-1 rounded-xl transition-all relative ${
             activeTab === 'wishlist' ? 'bg-white text-brand-600 shadow-sm' : 'text-neutral-500'
           }`}
         >
-          أكلات بيحبها فادي ({fadyWishlist.length}) ❤️
+          <span className="truncate block">أكلات فادي ({fadyWishlist.length}) ❤️</span>
         </button>
       </div>
 

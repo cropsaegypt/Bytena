@@ -84,27 +84,27 @@ export default function PWAInstaller() {
     <>
       {/* Floating Install Prompt Banner (Visible on mobile/desktop browsers) */}
       {!dismissed && (
-        <div className="fixed top-14 left-0 right-0 z-50 px-3 max-w-md md:max-w-xl lg:max-w-2xl mx-auto transition-all animate-in fade-in slide-in-from-top-4">
-          <div className="bg-gradient-to-r from-brand-600 via-rose-600 to-amber-600 text-white rounded-2xl p-3 shadow-xl shadow-rose-950/20 border border-white/20 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
-                <Smartphone className="w-5 h-5 text-white" />
+        <div className="fixed top-14 left-0 right-0 z-50 px-2.5 sm:px-3 pointer-events-none flex justify-center transition-all animate-in fade-in slide-in-from-top-4 w-full max-w-full">
+          <div className="w-full max-w-md md:max-w-xl pointer-events-auto bg-gradient-to-r from-brand-600 via-rose-600 to-amber-600 text-white rounded-2xl p-2.5 sm:p-3 shadow-xl shadow-rose-950/20 border border-white/20 flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div className="text-right">
-                <div className="font-black text-xs sm:text-sm flex items-center gap-1">
-                  <span>تثبيت تطبيق بيتنا ❤️</span>
-                  <span className="text-[10px] bg-white/30 px-1.5 py-0.5 rounded-full font-bold">موبايل</span>
+              <div className="text-right min-w-0">
+                <div className="font-black text-xs sm:text-sm flex items-center gap-1 truncate">
+                  <span className="truncate">تثبيت تطبيق بيتنا ❤️</span>
+                  <span className="text-[9px] sm:text-[10px] bg-white/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">موبايل</span>
                 </div>
-                <p className="text-[11px] text-rose-100 font-medium">
+                <p className="text-[10px] sm:text-[11px] text-rose-100 font-medium truncate">
                   وصول سريع من شاشة الهاتف بدون متصفح
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <button
                 onClick={handleInstallClick}
-                className="bg-white text-brand-600 hover:bg-rose-50 px-3 py-1.5 rounded-xl text-xs font-black shadow-md flex items-center gap-1 transition-transform active:scale-95"
+                className="bg-white text-brand-600 hover:bg-rose-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black shadow-md flex items-center gap-1 transition-transform active:scale-95"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>تثبيت</span>

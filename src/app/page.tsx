@@ -196,15 +196,15 @@ export default function HomeDashboard() {
       <section className="bg-gradient-to-l from-rose-500 via-brand-600 to-rose-700 rounded-3xl p-5 text-white shadow-lg shadow-brand-500/20 relative overflow-hidden">
         <div className="absolute -left-6 -bottom-6 w-32 h-32 rounded-full bg-white/10 blur-xl pointer-events-none"></div>
         
-        <div className="flex items-start justify-between relative z-10">
-          <div>
+        <div className="flex items-start justify-between gap-2 relative z-10">
+          <div className="min-w-0">
             <span className="text-[11px] font-bold tracking-wider text-rose-100 bg-black/15 px-2.5 py-1 rounded-full backdrop-blur-sm">
               {formatArabicDate(new Date())}
             </span>
-            <h1 className="text-xl font-black mt-2 tracking-tight">
+            <h1 className="text-lg sm:text-xl font-black mt-2 tracking-tight truncate">
               {getGreetingByTime(currentUser.displayName)}
             </h1>
-            <p className="text-xs text-rose-100 mt-1 font-medium">
+            <p className="text-xs text-rose-100 mt-1 font-medium truncate">
               جاهزين ليوم جميل ومنظم في بيتنا؟ ❤️
             </p>
           </div>
@@ -212,7 +212,7 @@ export default function HomeDashboard() {
           {/* Points Pill */}
           <Link
             href="/prayers"
-            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/20 text-xs font-bold transition-transform active:scale-95"
+            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md px-2.5 sm:px-3 py-1.5 rounded-2xl border border-white/20 text-xs font-bold transition-transform active:scale-95 shrink-0"
           >
             <Award className="w-4 h-4 text-amber-300" />
             <span>{data.totalPoints} نقطة</span>
