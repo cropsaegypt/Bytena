@@ -41,6 +41,9 @@ export default function KitchenPage() {
   const [newIngredientsText, setNewIngredientsText] = useState('');
   const [newInstructionsText, setNewInstructionsText] = useState('');
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+  const [aiPromptChoice, setAiPromptChoice] = useState<'ask' | 'manual' | 'generated'>('ask');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Schedule Form State
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
@@ -89,20 +92,101 @@ export default function KitchenPage() {
     }
   };
 
+  // Open modal with fresh reset state
+  const openAddRecipeModal = () => {
+    setNewTitle('');
+    setNewCategory('LUNCH');
+    setNewServings('2');
+    setNewPrepTime('30');
+    setNewIngredientsText('');
+    setNewInstructionsText('');
+    setAiPromptChoice('ask');
+    setIsGeneratingAI(false);
+    setAiError(null);
+    setIsAddRecipeOpen(true);
+  };
+
+  // AI Recipe Suggestion Handler
+  const handleAIAssistRecipe = async () => {
+    if (!newTitle.trim()) {
+      setAiError('يرجى كتابة اسم الأكلة أولاً');
+      return;
+    }
+    setIsGeneratingAI(true);
+    setAiError(null);
+
+    try {
+      const res = await fetch('/api/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'suggest_recipe_details',
+          mealName: newTitle.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.details) {
+        const d = data.details;
+        // Format ingredients line by line
+        const ingLines = Array.isArray(d.ingredients)
+          ? d.ingredients
+              .map((ing: any) =>
+                ing.amount && ing.amount > 0
+                  ? `${ing.name} - ${ing.amount} ${ing.unit || ''}`.trim()
+                  : ing.name
+              )
+              .join('\n')
+          : '';
+
+        // Format instructions line by line
+        const instLines = Array.isArray(d.instructions)
+          ? d.instructions.join('\n')
+          : '';
+
+        setNewIngredientsText(ingLines);
+        setNewInstructionsText(instLines);
+        if (d.prepTimeMins) setNewPrepTime(String(d.prepTimeMins));
+        if (d.servings) setNewServings(String(d.servings));
+        if (d.category) setNewCategory(d.category);
+        setAiPromptChoice('generated');
+      } else {
+        setAiError(data.message || 'تعذر استحضار المكونات حالياً');
+      }
+    } catch (err: any) {
+      setAiError('حدث خطأ أثناء الاتصال بالذكاء الاصطناعي');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
   // Save new recipe
   const handleSaveRecipe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle) return;
+    if (!newTitle.trim()) return;
     setIsSavingRecipe(true);
 
     const ingredients = newIngredientsText
       .split('\n')
-      .filter((l) => l.trim().length > 0)
-      .map((line) => ({ name: line.trim(), amount: 1, unit: 'حسب الرغبة', estimatedPrice: 15 }));
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+      .map((line) => {
+        // Parse if line contains separator like - or (amount unit)
+        const match = line.match(/^(.+?)\s*(?:-|–|\:|\()\s*(\d+(?:\.\d+)?)\s*([^\)]*)\)?$/);
+        if (match) {
+          return {
+            name: match[1].trim(),
+            amount: parseFloat(match[2]),
+            unit: match[3].replace(/\)$/, '').trim() || 'قطعة',
+            estimatedPrice: 20,
+          };
+        }
+        return { name: line, amount: 1, unit: 'حسب الرغبة', estimatedPrice: 15 };
+      });
 
     const instructions = newInstructionsText
       .split('\n')
-      .filter((l) => l.trim().length > 0);
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
 
     try {
       const res = await fetch('/api/meals', {
@@ -110,7 +194,7 @@ export default function KitchenPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'create_recipe',
-          title: newTitle,
+          title: newTitle.trim(),
           category: newCategory,
           servings: newServings,
           prepTimeMins: newPrepTime,
@@ -130,10 +214,12 @@ export default function KitchenPage() {
         setNewTitle('');
         setNewIngredientsText('');
         setNewInstructionsText('');
+        setAiPromptChoice('ask');
+        setAiError(null);
         loadData();
       }
     } catch (e) {
-      alert('حدث خطأ');
+      alert('حدث خطأ أثناء حفظ الوصفة');
     } finally {
       setIsSavingRecipe(false);
     }
@@ -191,7 +277,7 @@ export default function KitchenPage() {
         </div>
 
         <button
-          onClick={() => setIsAddRecipeOpen(true)}
+          onClick={openAddRecipeModal}
           className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md shadow-brand-500/20 active:scale-95 transition-all"
         >
           <Plus className="w-4 h-4" />
@@ -526,14 +612,21 @@ export default function KitchenPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1">اسم الأكلة</label>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">
+                اسم الأكلة أو الوجبة <span className="text-brand-600">*</span>
+              </label>
               <input
                 type="text"
                 required
-                placeholder="مثال: كفتة حاتي مشوية وسلطة طحينة"
+                placeholder="مثال: مسقعة باللحمة المفرومة، كشري مصري، ملوخية بالفراخ، كفتة..."
                 value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                onChange={(e) => {
+                  setNewTitle(e.target.value);
+                  if (aiPromptChoice === 'generated' && e.target.value.trim() === '') {
+                    setAiPromptChoice('ask');
+                  }
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
 
@@ -543,7 +636,7 @@ export default function KitchenPage() {
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
-                  className="w-full px-2.5 py-2 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-2.5 py-2 rounded-xl border border-neutral-200 text-xs font-bold focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="BREAKFAST">إفطار</option>
                   <option value="LUNCH">غداء</option>
@@ -557,7 +650,7 @@ export default function KitchenPage() {
                   type="number"
                   value={newServings}
                   onChange={(e) => setNewServings(e.target.value)}
-                  className="w-full px-2.5 py-2 rounded-xl border border-neutral-200 text-xs text-center"
+                  className="w-full px-2.5 py-2 rounded-xl border border-neutral-200 text-xs text-center font-bold"
                 />
               </div>
 
@@ -567,38 +660,158 @@ export default function KitchenPage() {
                   type="number"
                   value={newPrepTime}
                   onChange={(e) => setNewPrepTime(e.target.value)}
-                  className="w-full px-2.5 py-2 rounded-xl border border-neutral-200 text-xs text-center"
+                  className="w-full px-2.5 py-2 rounded-xl border border-neutral-200 text-xs text-center font-bold"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1">المكونات (كل سطر مكون)</label>
-              <textarea
-                rows={3}
-                placeholder="نصف كيلو لحم مفروم&#10;بصلة مفرومة&#10;بقدونس وبهارات كفتة"
-                value={newIngredientsText}
-                onChange={(e) => setNewIngredientsText(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
+            {/* AI ASSISTANT INTERACTIVE PROMPT CARD */}
+            {newTitle.trim().length >= 2 && aiPromptChoice === 'ask' && (
+              <div className="p-4 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100/70 border-2 border-amber-300 rounded-2xl shadow-sm space-y-3 animate-fadeIn">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-900 flex items-center justify-center text-xl shrink-0">
+                    👩‍🍳
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-black text-xs text-amber-950">أم محمود والذكاء الاصطناعي</h4>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-full">
+                        مساعد الطبخ الذكي
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-900 font-medium mt-1 leading-relaxed">
+                      {currentUser.id === 'fady' ? 'يا فادي' : 'يا ست الكل'}، تحب{' '}
+                      <span className="font-extrabold underline decoration-amber-400">
+                        تكتب مكونات "{newTitle.trim()}" بنفسك
+                      </span>{' '}
+                      ولا{' '}
+                      <span className="font-extrabold underline decoration-amber-400">
+                        اكتبهالك بالذكاء الاصطناعي
+                      </span>{' '}
+                      بالمقادير والخطوات وتشوفها وتراجعها الأول قبل الحفظ؟
+                    </p>
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1">خطوات التحضير (اختياري)</label>
-              <textarea
-                rows={2}
-                placeholder="خلط المكونات وتصبيع الكفتة والشيّ على الشواية أو بالفرن..."
-                value={newInstructionsText}
-                onChange={(e) => setNewInstructionsText(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isGeneratingAI}
+                    onClick={handleAIAssistRecipe}
+                    className="py-2.5 px-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 text-amber-200 ${isGeneratingAI ? 'animate-spin' : ''}`} />
+                    <span>{isGeneratingAI ? 'جاري تحضير المقادير...' : 'اكتبيهالي يا أم محمود ✨'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isGeneratingAI}
+                    onClick={() => setAiPromptChoice('manual')}
+                    className="py-2.5 px-3 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-300 rounded-xl font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                  >
+                    <span>سأكتبها بنفسي ✍️</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* PROMPT WHEN TITLE IS STILL SHORT */}
+            {newTitle.trim().length < 2 && aiPromptChoice === 'ask' && (
+              <div className="p-3 bg-neutral-50 border border-neutral-200/80 rounded-2xl flex items-center gap-2 text-xs text-neutral-500">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>اكتب اسم الأكلة أولاً بالأعلى وسيقترح عليك الذكاء الاصطناعي كتابة مقاديرها وخطواتها تلقائياً 💡</span>
+              </div>
+            )}
+
+            {/* REVIEW NOTICE AFTER AI GENERATION */}
+            {aiPromptChoice === 'generated' && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-black text-emerald-950">
+                        كتبتلك المقادير والخطوات بالكامل! 👩‍🍳✨
+                      </p>
+                      <p className="text-[11px] text-emerald-800 font-medium">
+                        شوف المقادير والخطوات بالأسفل وراجعها وعدّل أي كمية أو خطوة تحبها قبل ما تدوس "حفظ الوصفة".
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isGeneratingAI}
+                    onClick={handleAIAssistRecipe}
+                    className="text-[10px] bg-white border border-emerald-300 text-emerald-800 px-2.5 py-1 rounded-xl font-bold hover:bg-emerald-100 transition-all shrink-0 flex items-center gap-1 shadow-xs"
+                  >
+                    <span>إعادة التوليد</span>
+                    <span>🔄</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {aiError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold text-center">
+                {aiError}
+              </div>
+            )}
+
+            {/* INGREDIENTS FIELD (SHOWN FOR MANUAL, GENERATED, OR WHEN TYPING TITLE) */}
+            {(aiPromptChoice !== 'ask' || newTitle.trim().length < 2) && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-neutral-700">
+                    المكونات والمقادير (كل سطر مكون)
+                  </label>
+                  {aiPromptChoice === 'manual' && newTitle.trim().length >= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setAiPromptChoice('ask')}
+                      className="text-[10px] text-brand-600 hover:text-brand-800 font-bold flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span>اطلب مساعدة أم محمود ✨</span>
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  rows={4}
+                  placeholder="مثال:&#10;نصف كيلو لحم مفروم&#10;بصلة مفرومة ومصفاة&#10;بقدونس مفروم وبهارات كفتة"
+                  value={newIngredientsText}
+                  onChange={(e) => setNewIngredientsText(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium leading-relaxed"
+                />
+                {aiPromptChoice === 'generated' && (
+                  <p className="text-[10px] text-emerald-700 font-bold mt-1">
+                    ✏️ يمكنك تعديل أو حذف أي سطر من المكونات أعلاه كما يناسبك.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* INSTRUCTIONS FIELD */}
+            {(aiPromptChoice !== 'ask' || newTitle.trim().length < 2) && (
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  خطوات التحضير (كل سطر خطوة)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="مثال:&#10;خلط اللحم مع البصل والبهارات جيداً&#10;تصبيع الكفتة على أسياخ خشبية&#10;الشيّ على الجريل أو بالفرن لمدة 15 دقيقة"
+                  value={newInstructionsText}
+                  onChange={(e) => setNewInstructionsText(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium leading-relaxed"
+                />
+              </div>
+            )}
 
             <div className="flex gap-2 pt-2">
               <button
                 type="submit"
-                disabled={isSavingRecipe}
-                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50"
+                disabled={isSavingRecipe || isGeneratingAI}
+                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isSavingRecipe ? 'جاري الحفظ وحساب السعرات...' : 'حفظ الوصفة 🍲'}
               </button>

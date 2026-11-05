@@ -95,6 +95,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action } = body;
 
+    // 0. AI Recipe Assistant Suggestion
+    if (action === 'suggest_recipe_details') {
+      const { mealName } = body;
+      if (!mealName || !mealName.trim()) {
+        return NextResponse.json({ success: false, message: 'يرجى إدخال اسم الأكلة أو الوجبة' }, { status: 400 });
+      }
+
+      const aiService = getAIService();
+      const details = await aiService.generateRecipeDetails(mealName.trim());
+
+      return NextResponse.json({
+        success: true,
+        details,
+        message: 'تم استحضار المكونات وخطوات التحضير بنجاح، يمكنك مراجعتها وتعديلها قبل الحفظ'
+      });
+    }
+
     // 1. Add new recipe
     if (action === 'create_recipe') {
       const { title, category, servings, prepTimeMins, ingredients, instructions, calories, proteinG, carbsG, fatG, estimatedCost, suggestedByUserId } = body;
